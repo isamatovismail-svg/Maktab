@@ -129,7 +129,7 @@ class AttendanceSelectView(LoginRequiredMixin, View):
             return redirect('attendance_mark', lesson_id=lesson_id, date=date)
         lessons = Lesson.objects.all()
         today = datetime.date.today().isoformat()
-        return render(request, 'attendance_select.html', {'lessons': lessons, 'today': today, 'error': "Iltimos, dars va sanani tanlang."})
+        return render(request, 'attendance_select.html', {'lessons': lessons, 'today': today, 'error': ""})
 
 
 class AttendanceMarkView(LoginRequiredMixin, View):
