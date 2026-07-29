@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Yo'qlama olish — Yo'qlama tizimi{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Yo'qlama tizimi</p>
+    <h1>Yo'qlama olish</h1>
+    <p class="sub">Dars va sanani tanlang, keyin talabalarni belgilang</p>
+  </div>
+</div>
+
+<div class="form-sheet" style="max-width: 480px;">
+  {% if error %}
+  <p style="color: var(--red); font-size: 0.85rem; margin-bottom: 1rem;">{{ error }}</p>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="field">
+      <label for="lesson_id">Fan / Dars</label>
+      <select name="lesson_id" id="lesson_id" required>
+        <option value="" disabled selected>— Tanlang —</option>
+        {% for lesson in lessons %}
+        <option value="{{ lesson.pk }}">{{ lesson.title }} ({{ lesson.teacher_name }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="date">Sana</label>
+      <input type="date" name="date" id="date" value="{{ today }}" required>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn">Davom etish →</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

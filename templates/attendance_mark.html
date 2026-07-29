@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Yo'qlama olish — {{ lesson.title }} — {{ date }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Django Framework &middot; {{ date }}</p>
+    <h1>Yo'qlama olish</h1>
+    <p class="sub">Har bir talaba uchun holatni belgilang: Bor / Yo'q / Kech</p>
+  </div>
+  <button type="submit" form="attendance-form" class="btn">Saqlash va yakunlash</button>
+</div>
+
+<form method="post" id="attendance-form">
+  {% csrf_token %}
+
+  <table class="ledger">
+    <thead>
+      <tr>
+        <th class="row-no">#</th>
+        <th>F.I.Sh.</th>
+        <th>Talaba ID</th>
+        <th style="text-align:right;">Holat</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="row-no">{{ forloop.counter }}</td>
+        <td>
+          <a href="{% url 'student_update' row.student.pk %}" style="color:inherit; border-bottom: 1px dotted var(--ink); text-decoration:none;">
+            {{ row.student.first_name }} {{ row.student.last_name }}
+          </a>
+        </td>
+        <td style="font-family:'IBM Plex Mono',monospace; font-size:0.8rem; color:var(--muted);">
+          ST-{{ row.student.pk|stringformat:"04d" }}
+        </td>
+        <td style="text-align:right;">
+          <div class="stamp-group">
+            <button type="button"
+                    class="stamp stamp-present {% if row.status == 'B' %}active{% endif %}"
+                    data-name="status_{{ row.student.pk }}"
+                    data-value="B"
+                    title="Bor">B</button>
+
+            <button type="button"
+                    class="stamp stamp-late {% if row.status == 'K' %}active{% endif %}"
+                    data-name="status_{{ row.student.pk }}"
+                    data-value="K"
+                    title="Kech qoldi">K</button>
+
+            <button type="button"
+                    class="stamp stamp-absent {% if row.status == 'Y' %}active{% endif %}"
+                    data-name="status_{{ row.student.pk }}"
+                    data-value="Y"
+                    title="Yo'q">Y</button>
+
+            <!-- Hidden input — POST uchun -->
+            <input type="hidden"
+                   name="status_{{ row.student.pk }}"
+                   id="inp-{{ row.student.pk }}"
+                   value="{{ row.status }}">
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" style="text-align:center; padding:2rem; color:var(--muted);">
+          Hozircha talabalar kiritilmagan.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</form>
+
+<p style="margin-top:1.2rem; font-size:0.82rem; color:var(--muted);">
+  <strong>B</strong> — Bor &nbsp;&nbsp;
+  <strong>K</strong> — Kech qoldi &nbsp;&nbsp;
+  <strong>Y</strong> — Yo'q
+</p>
+
+<script>
+document.querySelectorAll('.stamp').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var name = this.dataset.name;
+    var val  = this.dataset.value;
+
+    // Bir guruh ichidagi boshqa stamp lardan active ni olib tashlaymiz
+    document.querySelectorAll('.stamp[data-name="' + name + '"]').forEach(function(s) {
+      s.classList.remove('active');
+    });
+
+    // Ushbu stamp ni active qilamiz
+    this.classList.add('active');
+
+    // Hidden input qiymatini yangilaymiz
+    var studentId = name.replace('status_', '');
+    document.getElementById('inp-' + studentId).value = val;
+  });
+});
+</script>
+{% endblock %}
