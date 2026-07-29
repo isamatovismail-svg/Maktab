@@ -17,14 +17,14 @@
     "pk": 2,
     "fields": {
       "password": "12345678",
-      "username": "teacher1"
+      "username": "Ali1"
     }
   },
   {
     "model": "auth.user",
     "pk": 3,
     "fields": {
-      "username": "teacher2",
+      "username": "ALi2",
       "password": "12345678"
     }
   },

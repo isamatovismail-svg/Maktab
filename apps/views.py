@@ -2,12 +2,12 @@ from django.views import View
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
+import datetime
 
-from .models import Student, Lesson
+from .models import Student, Lesson, Attendance
 from .forms import StudentForm, LessonForm
 
 
-# 1. LOGIN
 class UserLoginView(View):
     def get(self, request):
         return render(request, 'login.html')
@@ -24,21 +24,18 @@ class UserLoginView(View):
         return render(request, 'login.html', {'error': 'Username yoki parol noto\'g\'ri!'})
 
 
-# 2. LOGOUT
 class UserLogoutView(View):
     def get(self, request):
         logout(request)
         return redirect('login')
 
 
-# 3. TALABALAR RO'YXATI (READ)
 class StudentListView(LoginRequiredMixin, View):
     def get(self, request):
         students = Student.objects.all()
         return render(request, 'students.html', {'students': students})
 
 
-# 4. TALABA QO'SHISH (CREATE)
 class StudentCreateView(LoginRequiredMixin, View):
     def get(self, request):
         return render(request, 'student_form.html', {'form': StudentForm()})
@@ -51,7 +48,6 @@ class StudentCreateView(LoginRequiredMixin, View):
         return render(request, 'student_form.html', {'form': form})
 
 
-# 5. TALABANI TAHRIRLASH (UPDATE)
 class StudentUpdateView(LoginRequiredMixin, View):
     def get(self, request, pk):
         student = get_object_or_404(Student, pk=pk)
@@ -66,7 +62,6 @@ class StudentUpdateView(LoginRequiredMixin, View):
         return render(request, 'student_form.html', {'form': form})
 
 
-# 6. TALABANI O'CHIRISH (DELETE)
 class StudentDeleteView(LoginRequiredMixin, View):
     def get(self, request, pk):
         student = get_object_or_404(Student, pk=pk)
@@ -78,14 +73,12 @@ class StudentDeleteView(LoginRequiredMixin, View):
         return redirect('student_list')
 
 
-# 7. DARSLAR RO'YXATI (READ)
 class LessonListView(LoginRequiredMixin, View):
     def get(self, request):
         lessons = Lesson.objects.all()
         return render(request, 'lessons.html', {'lessons': lessons})
 
 
-# 8. DARS QO'SHISH (CREATE)
 class LessonCreateView(LoginRequiredMixin, View):
     def get(self, request):
         return render(request, 'lesson_form.html', {'form': LessonForm()})
@@ -98,7 +91,6 @@ class LessonCreateView(LoginRequiredMixin, View):
         return render(request, 'lesson_form.html', {'form': form})
 
 
-# 9. DARSNI TAHRIRLASH (UPDATE)
 class LessonUpdateView(LoginRequiredMixin, View):
     def get(self, request, pk):
         lesson = get_object_or_404(Lesson, pk=pk)
@@ -113,7 +105,6 @@ class LessonUpdateView(LoginRequiredMixin, View):
         return render(request, 'lesson_form.html', {'form': form})
 
 
-# 10. DARSNI O'CHIRISH (DELETE)
 class LessonDeleteView(LoginRequiredMixin, View):
     def get(self, request, pk):
         lesson = get_object_or_404(Lesson, pk=pk)
@@ -123,3 +114,54 @@ class LessonDeleteView(LoginRequiredMixin, View):
         lesson = get_object_or_404(Lesson, pk=pk)
         lesson.delete()
         return redirect('lesson_list')
+
+
+class AttendanceSelectView(LoginRequiredMixin, View):
+    def get(self, request):
+        lessons = Lesson.objects.all()
+        today = datetime.date.today().isoformat()
+        return render(request, 'attendance_select.html', {'lessons': lessons, 'today': today})
+
+    def post(self, request):
+        lesson_id = request.POST.get('lesson_id')
+        date = request.POST.get('date')
+        if lesson_id and date:
+            return redirect('attendance_mark', lesson_id=lesson_id, date=date)
+        lessons = Lesson.objects.all()
+        today = datetime.date.today().isoformat()
+        return render(request, 'attendance_select.html', {'lessons': lessons, 'today': today, 'error': "Iltimos, dars va sanani tanlang."})
+
+
+class AttendanceMarkView(LoginRequiredMixin, View):
+    def get(self, request, lesson_id, date):
+        lesson = get_object_or_404(Lesson, pk=lesson_id)
+        try:
+            date_obj = datetime.date.fromisoformat(date)
+        except ValueError:
+            return redirect('attendance_select')
+        students = Student.objects.all()
+        existing = {a.student_id: a.status for a in Attendance.objects.filter(lesson=lesson, date=date_obj)}
+        rows = []
+        for s in students:
+            rows.append({'student': s, 'status': existing.get(s.pk, '')})
+        return render(request, 'attendance_mark.html', {
+            'lesson': lesson,
+            'date': date_obj,
+            'rows': rows,
+        })
+
+    def post(self, request, lesson_id, date):
+        lesson = get_object_or_404(Lesson, pk=lesson_id)
+        try:
+            date_obj = datetime.date.fromisoformat(date)
+        except ValueError:
+            return redirect('attendance_select')
+        students = Student.objects.all()
+        for s in students:
+            status = request.POST.get(f'status_{s.pk}', '')
+            if status in ('B', 'K', 'Y'):
+                Attendance.objects.update_or_create(
+                    student=s, lesson=lesson, date=date_obj,
+                    defaults={'status': status}
+                )
+        return redirect('attendance_mark', lesson_id=lesson_id, date=date)

@@ -22,7 +22,7 @@
       <a href="{% url 'lesson_list' %}" class="{% if 'lesson' in request.resolver_match.url_name %}active{% endif %}">
         <span class="num">03</span> Darslar
       </a>
-      <a href="#" class="disabled-link">
+      <a href="{% url 'attendance_select' %}" class="{% if 'attendance' in request.resolver_match.url_name %}active{% endif %}">
         <span class="num">04</span> Yo'qlama olish
       </a>
       <a href="#" class="disabled-link">

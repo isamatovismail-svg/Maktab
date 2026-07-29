@@ -11,6 +11,26 @@ class Student(models.Model):
 class Lesson(models.Model):
     title = models.CharField(max_length=150, verbose_name="Fan nomi")
     teacher_name = models.CharField(max_length=100, verbose_name="O'qituvchi nomi")
-    
+
     def __str__(self):
         return self.title
+
+
+class Attendance(models.Model):
+    STATUS_CHOICES = [
+        ('B', 'Bor'),
+        ('K', 'Kech qoldi'),
+        ('Y', "Yo'q"),
+    ]
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, verbose_name="Talaba", related_name='attendances')
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, verbose_name="Dars", related_name='attendances')
+    date = models.DateField(verbose_name="Sana")
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='B', verbose_name="Holat")
+
+    class Meta:
+        unique_together = ('student', 'lesson', 'date')
+        verbose_name = "Yo'qlama"
+        verbose_name_plural = "Yo'qlamalar"
+
+    def __str__(self):
+        return f"{self.student} — {self.lesson} — {self.date} — {self.status}"
