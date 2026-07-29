@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Darslar / O'chirish</p>
+    <h1>Darsni o'chirish</h1>
+  </div>
+</div>
+
+<form class="form-sheet" method="post">
+  {% csrf_token %}
+  <p>Haqiqatan ham <strong>{{ object.title }}</strong> darsini o'chirmoqchimisiz?</p>
+  <div class="form-actions">
+    <button type="submit" class="btn danger">Ha, O'chirish</button>
+    <a href="{% url 'lesson_list' %}" class="btn secondary">Bekor qilish</a>
+  </div>
+</form>
+{% endblock %}

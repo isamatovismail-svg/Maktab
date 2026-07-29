@@ -1,0 +1,34 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kirish — Yo'qlama tizimi</title>
+<link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="brand">Yo'qlama<small>Jurnal tizimiga kirish</small></div>
+
+    {% if form.errors %}
+    <div class="error-msg">Foydalanuvchi nomi yoki parol noto'g'ri.</div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label for="username">Foydalanuvchi nomi</label>
+        <input type="text" id="username" name="username" placeholder="masalan: admin" required>
+      </div>
+      <div class="field">
+        <label for="password">Parol</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn">Kirish</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

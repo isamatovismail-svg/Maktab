@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yo'qlama tizimi</title>
+<link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">Yo'qlama<small>Jurnal tizimi</small></div>
+    <nav>
+      <a href="{% url 'student_list' %}" class="{% if 'student' in request.resolver_match.url_name %}active{% endif %}">
+        <span class="num">01</span> Talabalar
+      </a>
+      <a href="{% url 'lesson_list' %}" class="{% if 'lesson' in request.resolver_match.url_name %}active{% endif %}">
+        <span class="num">02</span> Darslar
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      Foydalanuvchi: {{ user.username }}<br>
+      {% if user.is_superuser %}
+        <a href="/admin/" target="_blank" style="color: var(--gold); text-decoration: underline;">Admin Panel</a> &middot;
+      {% endif %}
+      <a href="{% url 'logout' %}" style="color: var(--red);">Chiqish</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    {% block content %}
+    {% endblock %}
+  </main>
+</div>
+</body>
+</html>

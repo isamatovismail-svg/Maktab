@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Darslar / Forma</p>
+    <h1>Dars ma'lumotlari</h1>
+  </div>
+</div>
+
+<form class="form-sheet" method="post">
+  {% csrf_token %}
+  <div class="field">
+    <label for="id_title">Fan nomi</label>
+    {{ form.title }}
+  </div>
+  <div class="field">
+    <label for="id_teacher_name">O'qituvchi nomi</label>
+    {{ form.teacher_name }}
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn">Saqlash</button>
+    <a href="{% url 'lesson_list' %}" class="btn secondary">Bekor qilish</a>
+  </div>
+</form>
+{% endblock %}
