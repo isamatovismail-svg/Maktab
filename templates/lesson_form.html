@@ -1,23 +1,38 @@
 {% extends 'base.html' %}
 
+{% block title %}Dars — Yo'qlama tizimi{% endblock %}
+
 {% block content %}
 <div class="page-head">
   <div>
     <p class="eyebrow">Darslar / Forma</p>
-    <h1>Dars ma'lumotlari</h1>
+    <h1>{% if form.instance.pk %}Darsni tahrirlash{% else %}Dars qo'shish{% endif %}</h1>
+    <p class="sub">Dars ma'lumotlarini kiriting</p>
   </div>
 </div>
 
 <form class="form-sheet" method="post">
   {% csrf_token %}
+
   <div class="field">
     <label for="id_title">Fan nomi</label>
     {{ form.title }}
   </div>
+
   <div class="field">
     <label for="id_teacher_name">O'qituvchi nomi</label>
     {{ form.teacher_name }}
   </div>
+
+  {% if form.errors %}
+  <div style="color: var(--red); font-size: 0.85rem; margin-bottom: 0.5rem;">
+    {% for field in form %}
+      {% for error in field.errors %}
+        <div>{{ error }}</div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+  {% endif %}
 
   <div class="form-actions">
     <button type="submit" class="btn">Saqlash</button>

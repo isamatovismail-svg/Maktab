@@ -12,15 +12,15 @@
   <div class="login-card">
     <div class="brand">Yo'qlama<small>Jurnal tizimiga kirish</small></div>
 
-    {% if form.errors %}
-    <div class="error-msg">Foydalanuvchi nomi yoki parol noto'g'ri.</div>
+    {% if error %}
+    <div class="error-msg" style="color: var(--red); font-size: 0.85rem; margin-bottom: 1rem; text-align: center;">{{ error }}</div>
     {% endif %}
 
     <form method="post">
       {% csrf_token %}
       <div class="field">
         <label for="username">Foydalanuvchi nomi</label>
-        <input type="text" id="username" name="username" placeholder="masalan: admin" required>
+        <input type="text" id="username" name="username" placeholder="masalan: teacher1" required>
       </div>
       <div class="field">
         <label for="password">Parol</label>
@@ -28,6 +28,8 @@
       </div>
       <button type="submit" class="btn">Kirish</button>
     </form>
+
+
   </div>
 </div>
 </body>

@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% block title %}O'quvchini o'chirish — Yo'qlama tizimi{% endblock %}
+
 {% block content %}
 <div class="page-head">
   <div>
@@ -10,7 +12,7 @@
 
 <form class="form-sheet" method="post">
   {% csrf_token %}
-  <p>Haqiqatan ham <strong>{{ object.first_name }} {{ object.last_name }}</strong> o'quvchisini o'chirmoqchimisiz?</p>
+  <p>Haqiqatan ham <strong>{{ student.first_name }} {{ student.last_name }}</strong> o'quvchisini o'chirmoqchimisiz?</p>
   <div class="form-actions">
     <button type="submit" class="btn danger">Ha, O'chirish</button>
     <a href="{% url 'student_list' %}" class="btn secondary">Bekor qilish</a>

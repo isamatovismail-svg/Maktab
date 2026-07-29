@@ -1,27 +1,44 @@
 {% extends 'base.html' %}
 
+{% block title %}Talaba — Yo'qlama tizimi{% endblock %}
+
 {% block content %}
 <div class="page-head">
   <div>
     <p class="eyebrow">Talabalar / Forma</p>
-    <h1>O'quvchi ma'lumotlari</h1>
+    <h1>{% if form.instance.pk %}Talabani tahrirlash{% else %}Talaba qo'shish{% endif %}</h1>
+    <p class="sub">Talabaning ma'lumotlarini kiriting</p>
   </div>
 </div>
 
 <form class="form-sheet" method="post">
   {% csrf_token %}
-  <div class="field">
-    <label for="id_first_name">Ismi</label>
-    {{ form.first_name }}
+
+  <div class="field-row">
+    <div class="field">
+      <label for="id_first_name">Ismi</label>
+      {{ form.first_name }}
+    </div>
+    <div class="field">
+      <label for="id_last_name">Familiyasi</label>
+      {{ form.last_name }}
+    </div>
   </div>
-  <div class="field">
-    <label for="id_last_name">Familiyasi</label>
-    {{ form.last_name }}
-  </div>
+
   <div class="field">
     <label for="id_phone">Telefon raqami</label>
     {{ form.phone }}
   </div>
+
+  {% if form.errors %}
+  <div style="color: var(--red); font-size: 0.85rem; margin-bottom: 0.5rem;">
+    {% for field in form %}
+      {% for error in field.errors %}
+        <div>{{ error }}</div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+  {% endif %}
 
   <div class="form-actions">
     <button type="submit" class="btn">Saqlash</button>
