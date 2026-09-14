@@ -1,48 +1,41 @@
 {% extends 'base.html' %}
 
-{% block title %}Talaba — Yo'qlama tizimi{% endblock %}
+{% block title %}O'quvchi Ma'lumotlari — Smart Maktab{% endblock %}
+{% block header_title %}O'quvchi Saqlash Formasi{% endblock %}
 
 {% block content %}
-<div class="page-head">
-  <div>
-    <p class="eyebrow">Talabalar / Forma</p>
-    <h1>{% if form.instance.pk %}Talabani tahrirlash{% else %}Talaba qo'shish{% endif %}</h1>
-    <p class="sub">Talabaning ma'lumotlarini kiriting</p>
-  </div>
+<div class="glass-card" style="max-width: 550px; margin: 20px auto;">
+    <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 20px;">O'quvchi Ma'lumotlarini Kiritish</h3>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Ismi:</label>
+            {{ form.first_name }}
+        </div>
+        <div class="form-group">
+            <label>Familiyasi:</label>
+            {{ form.last_name }}
+        </div>
+        <div class="form-group">
+            <label>Sinfi:</label>
+            {{ form.grade_class }}
+        </div>
+        <div class="form-group">
+            <label>Telefon Raqami:</label>
+            {{ form.phone }}
+        </div>
+        <div class="form-group">
+            <label>Ota-onasi Telefon Raqami (Telegram xabarnomalar uchun):</label>
+            {{ form.parent_phone }}
+        </div>
+        <div class="form-group">
+            <label>Telegram Chat ID:</label>
+            {{ form.telegram_id }}
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <button type="submit" class="btn-primary" style="flex: 1; justify-content: center;">Saqlash</button>
+            <a href="{% url 'student_list' %}" class="btn-secondary">Orqaga</a>
+        </div>
+    </form>
 </div>
-
-<form class="form-sheet" method="post">
-  {% csrf_token %}
-
-  <div class="field-row">
-    <div class="field">
-      <label for="id_first_name">Ismi</label>
-      {{ form.first_name }}
-    </div>
-    <div class="field">
-      <label for="id_last_name">Familiyasi</label>
-      {{ form.last_name }}
-    </div>
-  </div>
-
-  <div class="field">
-    <label for="id_phone">Telefon raqami</label>
-    {{ form.phone }}
-  </div>
-
-  {% if form.errors %}
-  <div style="color: var(--red); font-size: 0.85rem; margin-bottom: 0.5rem;">
-    {% for field in form %}
-      {% for error in field.errors %}
-        <div>{{ error }}</div>
-      {% endfor %}
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  <div class="form-actions">
-    <button type="submit" class="btn">Saqlash</button>
-    <a href="{% url 'student_list' %}" class="btn secondary">Bekor qilish</a>
-  </div>
-</form>
 {% endblock %}

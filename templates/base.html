@@ -1,47 +1,512 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}Yo'qlama tizimi{% endblock %}</title>
-<link rel="stylesheet" href="{% static 'style.css' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Smart Maktab — Elektron Kundalik & Bilim.uz Platformasi{% endblock %}</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --bg-card-hover: rgba(51, 65, 85, 0.8);
+            --border-card: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --glass-blur: blur(16px);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Sidebar Styles */
+        aside.sidebar {
+            width: 280px;
+            background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-right: 1px solid var(--border-card);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 12px 24px;
+            border-bottom: 1px solid var(--border-card);
+            margin-bottom: 24px;
+        }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .brand-title {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-subtitle {
+            font-size: 11px;
+            color: var(--accent-cyan);
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .nav-section-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            padding: 12px 12px 4px;
+            font-weight: 700;
+        }
+
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item a:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(4px);
+        }
+
+        .nav-item.active a {
+            color: white;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.8), rgba(6, 182, 212, 0.8));
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        .nav-item i {
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* User Profile in Sidebar */
+        .user-profile-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: auto;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-amber), var(--accent-rose));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: white;
+        }
+
+        .user-name {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .user-role {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .btn-logout {
+            color: var(--accent-rose);
+            text-decoration: none;
+            font-size: 16px;
+            padding: 6px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(244, 63, 94, 0.1);
+        }
+
+        /* Main Content Layout */
+        main.main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 32px 40px;
+            min-height: 100vh;
+        }
+
+        /* Top Header */
+        header.top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .header-title h1 {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 2px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .telegram-badge {
+            background: linear-gradient(135deg, #0088cc, #24A1DE);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3);
+            transition: transform 0.2s;
+        }
+
+        .telegram-badge:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Card & UI Containers */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-card);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: border-color 0.2s;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            border: 1px solid var(--border-card);
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Tables */
+        .modern-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 16px;
+        }
+
+        .modern-table th {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-card);
+        }
+
+        .modern-table td {
+            padding: 16px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 14px;
+            color: var(--text-main);
+        }
+
+        .modern-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Form Inputs */
+        .form-control, .form-select {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-card);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        /* Badges */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .badge-danger { background: rgba(244, 63, 94, 0.2); color: #f87171; }
+        .badge-primary { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+
+        @media (max-width: 1024px) {
+            aside.sidebar { width: 80px; padding: 16px 8px; }
+            .brand-title, .brand-subtitle, .nav-section-label, .nav-item span, .user-name, .user-role { display: none; }
+            main.main-content { margin-left: 80px; padding: 20px; }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-<div class="shell">
 
-  <aside class="sidebar">
-    <div class="brand">Yo'qlama<small>Jurnal tizimi</small></div>
-    <nav>
-      <a href="#" class="disabled-link">
-        <span class="num">01</span> Bosh sahifa
-      </a>
-      <a href="{% url 'student_list' %}" class="{% if 'student' in request.resolver_match.url_name %}active{% endif %}">
-        <span class="num">02</span> Talabalar
-      </a>
-      <a href="{% url 'lesson_list' %}" class="{% if 'lesson' in request.resolver_match.url_name %}active{% endif %}">
-        <span class="num">03</span> Darslar
-      </a>
-      <a href="{% url 'attendance_select' %}" class="{% if 'attendance' in request.resolver_match.url_name %}active{% endif %}">
-        <span class="num">04</span> Yo'qlama olish
-      </a>
-      <a href="#" class="disabled-link">
-        <span class="num">05</span> Hisobotlar
-      </a>
-    </nav>
-    <div class="sidebar-footer">
-      Foydalanuvchi: {{ user.username }}<br>
-      {% if user.is_superuser %}
-        <a href="/admin/" target="_blank" style="color: var(--gold); text-decoration: underline;">Admin Panel</a> &middot;
-      {% endif %}
-      <a href="{% url 'logout' %}" style="color: var(--red);">Chiqish</a>
-    </div>
-  </aside>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div>
+                <div class="brand-title">SmartMaktab</div>
+                <div class="brand-subtitle">Kundalik & Bilim.uz</div>
+            </div>
+        </div>
 
-  <main class="main">
-    {% block content %}
-    {% endblock %}
-  </main>
-</div>
+        <ul class="nav-menu">
+            <li class="nav-section-label">Asosiy</li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                <a href="{% url 'home' %}">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Bosh Sahifa</span>
+                </a>
+            </li>
+
+            <li class="nav-section-label">Kundalik.uz Tizimi</li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'gradebook' %}active{% endif %}">
+                <a href="{% url 'gradebook' %}">
+                    <i class="fa-solid fa-book-open"></i>
+                    <span>Baholar Jurnali</span>
+                </a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'attendance' %}active{% endif %}">
+                <a href="{% url 'attendance' %}">
+                    <i class="fa-solid fa-clipboard-user"></i>
+                    <span>Yo'qlama / Davomat</span>
+                </a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'timetable' %}active{% endif %}">
+                <a href="{% url 'timetable' %}">
+                    <i class="fa-solid fa-calendar-days"></i>
+                    <span>Dars Jadvali</span>
+                </a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'homework_list' %}active{% endif %}">
+                <a href="{% url 'homework_list' %}">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Uyga Vazifalar</span>
+                </a>
+            </li>
+
+            <li class="nav-section-label">Bilim.uz Testlar</li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'quiz_list' or request.resolver_match.url_name == 'quiz_take' %}active{% endif %}">
+                <a href="{% url 'quiz_list' %}">
+                    <i class="fa-solid fa-brain"></i>
+                    <span>Onlayn Testlar</span>
+                </a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}">
+                <a href="{% url 'leaderboard' %}">
+                    <i class="fa-solid fa-trophy"></i>
+                    <span>Reyting (Leaderboard)</span>
+                </a>
+            </li>
+
+            <li class="nav-section-label">Boshqaruv</li>
+            <li class="nav-item {% if 'student' in request.resolver_match.url_name %}active{% endif %}">
+                <a href="{% url 'student_list' %}">
+                    <i class="fa-solid fa-users"></i>
+                    <span>O'quvchilar Bazasi</span>
+                </a>
+            </li>
+        </ul>
+
+        {% if user.is_authenticated %}
+        <div class="user-profile-card">
+            <div class="user-info">
+                <div class="avatar">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+                <div>
+                    <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
+                    <div class="user-role">{% if user.is_superuser %}Administrator{% else %}O'qituvchi{% endif %}</div>
+                </div>
+            </div>
+            <a href="{% url 'logout' %}" class="btn-logout" title="Chiqish">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </a>
+        </div>
+        {% else %}
+        <div style="margin-top: auto; padding: 12px 0;">
+            <a href="{% url 'login' %}" class="btn-primary" style="width: 100%; justify-content: center;">Kirish</a>
+        </div>
+        {% endif %}
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-title">
+                <h1>{% block header_title %}Smart Maktab Dashboard{% endblock %}</h1>
+                <p>{% block header_subtitle %}Elektron Ta'lim, Baholash va Telegram Bot Platformasi{% endblock %}</p>
+            </div>
+            <div class="header-actions">
+                <a href="https://t.me/" target="_blank" class="telegram-badge">
+                    <i class="fa-brands fa-telegram"></i> Telegram Bot Active
+                </a>
+            </div>
+        </header>
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
