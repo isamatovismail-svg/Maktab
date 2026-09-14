@@ -1,1 +1,1 @@
-default_app_config = 'apps.apps.AppsConfig'
+# Django 4+ da default_app_config kerak emas

@@ -1,8 +1,10 @@
+import random
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .permissions import Role
+
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -20,9 +22,10 @@ class UserProfile(models.Model):
 
 
 class GradeClass(models.Model):
-    name = models.CharField(max_length=20, unique=True, verbose_name="Sinf nomi")  # e.g., 9-A, 10-B
+    name = models.CharField(max_length=20, unique=True, verbose_name="Sinf nomi")
     class_teacher = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_classes', verbose_name="Sinf rahbari"
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='managed_classes', verbose_name="Sinf rahbari"
     )
 
     class Meta:
@@ -82,16 +85,10 @@ class Teacher(models.Model):
 
 
 class Student(models.Model):
-    GENDER_CHOICES = [
-        ('M', 'Erkak'),
-        ('F', 'Ayol'),
-    ]
-
+    GENDER_CHOICES = [('M', 'Erkak'), ('F', 'Ayol')]
     STATUS_CHOICES = [
-        ('ACTIVE', 'Faol'),
-        ('INACTIVE', 'Nofaol'),
-        ('GRADUATED', 'Bitirgan'),
-        ('TRANSFERRED', "Ko'chirilgan"),
+        ('ACTIVE', 'Faol'), ('INACTIVE', 'Nofaol'),
+        ('GRADUATED', 'Bitirgan'), ('TRANSFERRED', "Ko'chirilgan"),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile', null=True, blank=True)
@@ -103,11 +100,9 @@ class Student(models.Model):
     grade_class = models.ForeignKey(GradeClass, on_delete=models.SET_NULL, null=True, blank=True, related_name='students', verbose_name="Sinf", db_index=True)
     phone = models.CharField(max_length=20, blank=True, verbose_name="O'quvchi telefoni")
     address = models.TextField(blank=True, verbose_name="Yashash manzili")
-    
     parent = models.ForeignKey(ParentProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name='children', verbose_name="Ota-onasi / Vasiy")
     parent_phone = models.CharField(max_length=20, blank=True, verbose_name="Ota-onasining telefoni")
     emergency_contact = models.CharField(max_length=100, blank=True, verbose_name="Shoshilinch aloqa raqami")
-    
     admission_date = models.DateField(default=timezone.now, verbose_name="Qabul qilingan sana")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE', verbose_name="Holati", db_index=True)
     profile_photo = models.ImageField(upload_to='students/photos/', null=True, blank=True, verbose_name="Profil rasmi")
@@ -123,21 +118,14 @@ class Student(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.student_id:
-            import random
-            prefix = "STU"
-            rand_num = random.randint(10000, 99999)
-            self.student_id = f"{prefix}-{rand_num}"
+            self.student_id = f"STU-{random.randint(10000, 99999)}"
         super().save(*args, **kwargs)
 
 
 class Timetable(models.Model):
     DAYS = [
-        (1, 'Dushanba'),
-        (2, 'Seshanba'),
-        (3, 'Chorshanba'),
-        (4, 'Payshanba'),
-        (5, 'Juma'),
-        (6, 'Shanba'),
+        (1, 'Dushanba'), (2, 'Seshanba'), (3, 'Chorshanba'),
+        (4, 'Payshanba'), (5, 'Juma'), (6, 'Shanba'),
     ]
     grade_class = models.ForeignKey(GradeClass, on_delete=models.CASCADE, related_name='timetables', verbose_name="Sinf", db_index=True)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, verbose_name="Fan")
@@ -156,39 +144,31 @@ class Timetable(models.Model):
 
     def clean(self):
         super().clean()
-        # Teacher conflict check
         if self.teacher and self.day_of_week and self.time_slot:
-            conflict_teacher = Timetable.objects.filter(
-                teacher=self.teacher,
-                day_of_week=self.day_of_week,
-                time_slot=self.time_slot
-            ).exclude(pk=self.pk)
-            if conflict_teacher.exists():
-                other = conflict_teacher.first()
+            conflict = Timetable.objects.filter(
+                teacher=self.teacher, day_of_week=self.day_of_week, time_slot=self.time_slot
+            ).exclude(pk=self.pk).first()
+            if conflict:
                 raise ValidationError(
-                    f"Xatolik: O'qituvchi ({self.teacher}) {self.get_day_of_week_display()} kuni {self.time_slot} vaqtida {other.grade_class} sinfida darsda!"
+                    f"Xatolik: O'qituvchi ({self.teacher}) {self.get_day_of_week_display()} "
+                    f"kuni {self.time_slot} vaqtida {conflict.grade_class} sinfida darsda!"
                 )
 
-        # Room conflict check
         if self.room and self.day_of_week and self.time_slot:
-            conflict_room = Timetable.objects.filter(
-                room__iexact=self.room,
-                day_of_week=self.day_of_week,
-                time_slot=self.time_slot
-            ).exclude(pk=self.pk)
-            if conflict_room.exists():
-                other = conflict_room.first()
+            conflict = Timetable.objects.filter(
+                room__iexact=self.room, day_of_week=self.day_of_week, time_slot=self.time_slot
+            ).exclude(pk=self.pk).first()
+            if conflict:
                 raise ValidationError(
-                    f"Xatolik: Xona ({self.room}) {self.get_day_of_week_display()} kuni {self.time_slot} vaqtida {other.grade_class} sinfi tomonidan band qilingan!"
+                    f"Xatolik: Xona ({self.room}) {self.get_day_of_week_display()} "
+                    f"kuni {self.time_slot} vaqtida {conflict.grade_class} sinfi tomonidan band qilingan!"
                 )
 
 
 class Grade(models.Model):
     GRADE_TYPES = [
-        ('KUNDALIK', 'Kundalik dars'),
-        ('NAZORAT', 'Nazorat ishi'),
-        ('CHORAK', 'Choraklik baho'),
-        ('HOMEWORK', 'Uyga vazifa'),
+        ('KUNDALIK', 'Kundalik dars'), ('NAZORAT', 'Nazorat ishi'),
+        ('CHORAK', 'Choraklik baho'), ('HOMEWORK', 'Uyga vazifa'),
     ]
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='grades', verbose_name="O'quvchi", db_index=True)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='grades', verbose_name="Fan", db_index=True)
@@ -209,10 +189,8 @@ class Grade(models.Model):
 
 class Attendance(models.Model):
     STATUS_CHOICES = [
-        ('B', 'Bor (Present)'),
-        ('K', 'Kech qoldi (Late)'),
-        ('Y', "Yo'q (Absent)"),
-        ('S', "Sababli yo'q (Excused)"),
+        ('B', 'Bor (Present)'), ('K', 'Kech qoldi (Late)'),
+        ('Y', "Yo'q (Absent)"), ('S', "Sababli yo'q (Excused)"),
     ]
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendances', verbose_name="O'quvchi", db_index=True)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='attendances', verbose_name="Fan", db_index=True)
@@ -231,7 +209,7 @@ class Attendance(models.Model):
 
 
 class FeeType(models.Model):
-    name = models.CharField(max_length=100, verbose_name="To'lov turi nomi")  # e.g., Oylik kontrakti, Qabul to'lovi
+    name = models.CharField(max_length=100, verbose_name="To'lov turi nomi")
     amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Standart summa (UZS)")
     description = models.TextField(blank=True, verbose_name="Tavsif")
 
@@ -245,10 +223,8 @@ class FeeType(models.Model):
 
 class StudentFee(models.Model):
     STATUS_CHOICES = [
-        ('PENDING', 'Kutilmoqda'),
-        ('PAID', "To'langan"),
-        ('PARTIAL', "Qisman to'langan"),
-        ('OVERDUE', 'Muddati o\'tgan'),
+        ('PENDING', 'Kutilmoqda'), ('PAID', "To'langan"),
+        ('PARTIAL', "Qisman to'langan"), ('OVERDUE', "Muddati o'tgan"),
     ]
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='fees', verbose_name="O'quvchi", db_index=True)
     fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE, verbose_name="To'lov turi")
@@ -273,8 +249,7 @@ class StudentFee(models.Model):
 
     @property
     def total_paid(self):
-        paid = self.payments.aggregate(total=models.Sum('paid_amount'))['total'] or 0
-        return float(paid)
+        return float(self.payments.aggregate(total=models.Sum('paid_amount'))['total'] or 0)
 
     @property
     def balance_due(self):
@@ -294,9 +269,7 @@ class StudentFee(models.Model):
 
 class PaymentRecord(models.Model):
     PAYMENT_METHODS = [
-        ('CASH', 'Naqd pul'),
-        ('CARD', 'Bank kartasi (Click/Payme)'),
-        ('BANK', 'Bank o\'tkazmasi'),
+        ('CASH', 'Naqd pul'), ('CARD', 'Bank kartasi (Click/Payme)'), ('BANK', "Bank o'tkazmasi"),
     ]
     student_fee = models.ForeignKey(StudentFee, on_delete=models.CASCADE, related_name='payments', verbose_name="To'lov hujjati")
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="To'langan summa (UZS)")
@@ -317,7 +290,6 @@ class PaymentRecord(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.receipt_number:
-            import random
             self.receipt_number = f"REC-{timezone.now().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
         super().save(*args, **kwargs)
         self.student_fee.update_status()
@@ -344,10 +316,8 @@ class Homework(models.Model):
 
 class HomeworkSubmission(models.Model):
     STATUS_CHOICES = [
-        ('PENDING', 'Kutilmoqda'),
-        ('SUBMITTED', 'Topshirildi'),
-        ('GRADED', 'Baholandi'),
-        ('LATE', 'Kechikkan'),
+        ('PENDING', 'Kutilmoqda'), ('SUBMITTED', 'Topshirildi'),
+        ('GRADED', 'Baholandi'), ('LATE', 'Kechikkan'),
     ]
     homework = models.ForeignKey(Homework, on_delete=models.CASCADE, related_name='submissions', verbose_name="Uyga vazifa")
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='homework_submissions', verbose_name="O'quvchi")
@@ -403,24 +373,16 @@ class ExamResult(models.Model):
 
     def save(self, *args, **kwargs):
         if self.exam and self.marks_obtained is not None:
-            self.percentage = round((float(self.marks_obtained) / float(self.exam.total_marks)) * 100, 1)
-            if self.percentage >= 85:
-                self.grade = '5'
-            elif self.percentage >= 70:
-                self.grade = '4'
-            elif self.percentage >= 55:
-                self.grade = '3'
-            else:
-                self.grade = '2'
+            pct = round((float(self.marks_obtained) / float(self.exam.total_marks)) * 100, 1)
+            self.percentage = pct
+            self.grade = '5' if pct >= 85 else '4' if pct >= 70 else '3' if pct >= 55 else '2'
         super().save(*args, **kwargs)
 
 
 class Announcement(models.Model):
     TARGET_ROLES = [
-        ('ALL', "Barcha foydalanuvchilar"),
-        ('TEACHERS', "Faqat o'qituvchilar"),
-        ('STUDENTS', "Faqat o'quvchilar"),
-        ('PARENTS', "Faqat ota-onalar"),
+        ('ALL', "Barcha foydalanuvchilar"), ('TEACHERS', "Faqat o'qituvchilar"),
+        ('STUDENTS', "Faqat o'quvchilar"), ('PARENTS', "Faqat ota-onalar"),
     ]
     title = models.CharField(max_length=200, verbose_name="Sarlavha")
     content = models.TextField(verbose_name="E'lon matni")
@@ -440,11 +402,8 @@ class Announcement(models.Model):
 
 class Notification(models.Model):
     TYPE_CHOICES = [
-        ('HOMEWORK', 'Uyga vazifa'),
-        ('EXAM', 'Imtihon'),
-        ('FEE', "To'lov eslatmasi"),
-        ('ATTENDANCE', 'Davomat'),
-        ('ANNOUNCEMENT', "E'lon"),
+        ('HOMEWORK', 'Uyga vazifa'), ('EXAM', 'Imtihon'), ('FEE', "To'lov eslatmasi"),
+        ('ATTENDANCE', 'Davomat'), ('ANNOUNCEMENT', "E'lon"),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', verbose_name="Foydalanuvchi")
     title = models.CharField(max_length=200, verbose_name="Sarlavha")
@@ -463,7 +422,6 @@ class Notification(models.Model):
         return f"{self.user.username} — {self.title} ({'O\'qilgan' if self.is_read else 'Yangi'})"
 
 
-# Bilim.uz Test Platformasi Modellari
 class Quiz(models.Model):
     title = models.CharField(max_length=200, verbose_name="Test nomi")
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='quizzes', verbose_name="Fan")
@@ -480,12 +438,7 @@ class Quiz(models.Model):
 
 
 class Question(models.Model):
-    OPTION_CHOICES = [
-        ('A', 'A Variant'),
-        ('B', 'B Variant'),
-        ('C', 'C Variant'),
-        ('D', 'D Variant'),
-    ]
+    OPTION_CHOICES = [('A', 'A Variant'), ('B', 'B Variant'), ('C', 'C Variant'), ('D', 'D Variant')]
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='questions', verbose_name="Test")
     text = models.TextField(verbose_name="Savol matni")
     option_a = models.CharField(max_length=255, verbose_name="A variant")

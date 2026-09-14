@@ -6,6 +6,23 @@ from .models import (
     StudentFee, PaymentRecord, Exam, ExamResult, Announcement
 )
 
+# ── Yordamchi funksiyalar ─────────────────────────────────────
+
+def fc(placeholder=None, **extra):
+    """form-control widget attrs yordamchisi."""
+    attrs = {'class': 'form-control'}
+    if placeholder:
+        attrs['placeholder'] = placeholder
+    attrs.update(extra)
+    return attrs
+
+def fs():
+    """form-select widget attrs yordamchisi."""
+    return {'class': 'form-select'}
+
+
+# ── Formalar ──────────────────────────────────────────────────
+
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
@@ -15,19 +32,19 @@ class StudentForm(forms.ModelForm):
             'status', 'profile_photo', 'telegram_id'
         ]
         widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ismi'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Familiyasi'}),
-            'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'gender': forms.Select(attrs={'class': 'form-select'}),
-            'grade_class': forms.Select(attrs={'class': 'form-select'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+998901234567'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Yashash manzili...'}),
-            'parent': forms.Select(attrs={'class': 'form-select'}),
-            'parent_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+998909876543'}),
-            'emergency_contact': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Shoshilinch aloqa kishi va telefon'}),
-            'status': forms.Select(attrs={'class': 'form-select'}),
+            'first_name': forms.TextInput(attrs=fc('Ismi')),
+            'last_name': forms.TextInput(attrs=fc('Familiyasi')),
+            'birth_date': forms.DateInput(attrs=fc(type='date')),
+            'gender': forms.Select(attrs=fs()),
+            'grade_class': forms.Select(attrs=fs()),
+            'phone': forms.TextInput(attrs=fc('+998901234567')),
+            'address': forms.Textarea(attrs=fc('Yashash manzili...', rows=2)),
+            'parent': forms.Select(attrs=fs()),
+            'parent_phone': forms.TextInput(attrs=fc('+998909876543')),
+            'emergency_contact': forms.TextInput(attrs=fc('Shoshilinch aloqa kishi va telefon')),
+            'status': forms.Select(attrs=fs()),
             'profile_photo': forms.FileInput(attrs={'class': 'form-control'}),
-            'telegram_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '123456789'}),
+            'telegram_id': forms.TextInput(attrs=fc('123456789')),
         }
 
 
@@ -36,12 +53,12 @@ class ParentProfileForm(forms.ModelForm):
         model = ParentProfile
         fields = ['first_name', 'last_name', 'phone', 'email', 'occupation', 'address']
         widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ismi'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Familiyasi'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+998901234567'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'email@example.com'}),
-            'occupation': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ish joyi / kasbi'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Manzil'}),
+            'first_name': forms.TextInput(attrs=fc('Ismi')),
+            'last_name': forms.TextInput(attrs=fc('Familiyasi')),
+            'phone': forms.TextInput(attrs=fc('+998901234567')),
+            'email': forms.EmailInput(attrs=fc('email@example.com')),
+            'occupation': forms.TextInput(attrs=fc('Ish joyi / kasbi')),
+            'address': forms.Textarea(attrs=fc('Manzil', rows=2)),
         }
 
 
@@ -50,10 +67,10 @@ class SubjectForm(forms.ModelForm):
         model = Subject
         fields = ['name', 'code', 'icon', 'color']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Matematika'}),
-            'code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'MATH101'}),
-            'icon': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '📐'}),
-            'color': forms.TextInput(attrs={'class': 'form-control', 'type': 'color'}),
+            'name': forms.TextInput(attrs=fc('Matematika')),
+            'code': forms.TextInput(attrs=fc('MATH101')),
+            'icon': forms.TextInput(attrs=fc('📐')),
+            'color': forms.TextInput(attrs=fc(type='color')),
         }
 
 
@@ -62,8 +79,8 @@ class GradeClassForm(forms.ModelForm):
         model = GradeClass
         fields = ['name', 'class_teacher']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '9-A'}),
-            'class_teacher': forms.Select(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs=fc('9-A')),
+            'class_teacher': forms.Select(attrs=fs()),
         }
 
 
@@ -72,12 +89,12 @@ class TimetableForm(forms.ModelForm):
         model = Timetable
         fields = ['grade_class', 'subject', 'teacher', 'day_of_week', 'time_slot', 'room']
         widgets = {
-            'grade_class': forms.Select(attrs={'class': 'form-select'}),
-            'subject': forms.Select(attrs={'class': 'form-select'}),
-            'teacher': forms.Select(attrs={'class': 'form-select'}),
-            'day_of_week': forms.Select(attrs={'class': 'form-select'}),
-            'time_slot': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '08:30 - 09:15'}),
-            'room': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '101-xona'}),
+            'grade_class': forms.Select(attrs=fs()),
+            'subject': forms.Select(attrs=fs()),
+            'teacher': forms.Select(attrs=fs()),
+            'day_of_week': forms.Select(attrs=fs()),
+            'time_slot': forms.TextInput(attrs=fc('08:30 - 09:15')),
+            'room': forms.TextInput(attrs=fc('101-xona')),
         }
 
 
@@ -86,13 +103,13 @@ class HomeworkForm(forms.ModelForm):
         model = Homework
         fields = ['grade_class', 'subject', 'teacher', 'title', 'description', 'attachment', 'due_date']
         widgets = {
-            'grade_class': forms.Select(attrs={'class': 'form-select'}),
-            'subject': forms.Select(attrs={'class': 'form-select'}),
-            'teacher': forms.Select(attrs={'class': 'form-select'}),
-            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Masalan, 45-bet 1-4 mashqlar'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Vazifa topshirig\'i...'}),
+            'grade_class': forms.Select(attrs=fs()),
+            'subject': forms.Select(attrs=fs()),
+            'teacher': forms.Select(attrs=fs()),
+            'title': forms.TextInput(attrs=fc('Masalan, 45-bet 1-4 mashqlar')),
+            'description': forms.Textarea(attrs=fc("Vazifa topshirig'i...", rows=3)),
             'attachment': forms.FileInput(attrs={'class': 'form-control'}),
-            'due_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'due_date': forms.DateInput(attrs=fc(type='date')),
         }
 
 
@@ -101,7 +118,7 @@ class HomeworkSubmissionForm(forms.ModelForm):
         model = HomeworkSubmission
         fields = ['submission_text', 'attachment']
         widgets = {
-            'submission_text': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Javobingiz va izohingiz...'}),
+            'submission_text': forms.Textarea(attrs=fc('Javobingiz va izohingiz...', rows=4)),
             'attachment': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
@@ -111,12 +128,12 @@ class GradeForm(forms.ModelForm):
         model = Grade
         fields = ['student', 'subject', 'score', 'grade_type', 'date', 'comment']
         widgets = {
-            'student': forms.Select(attrs={'class': 'form-select'}),
-            'subject': forms.Select(attrs={'class': 'form-select'}),
-            'score': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '5', 'min': 1, 'max': 100}),
-            'grade_type': forms.Select(attrs={'class': 'form-select'}),
-            'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'comment': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Darsdagi faolligi uchun'}),
+            'student': forms.Select(attrs=fs()),
+            'subject': forms.Select(attrs=fs()),
+            'score': forms.NumberInput(attrs=fc('5', min=1, max=100)),
+            'grade_type': forms.Select(attrs=fs()),
+            'date': forms.DateInput(attrs=fc(type='date')),
+            'comment': forms.TextInput(attrs=fc('Darsdagi faolligi uchun')),
         }
 
 
@@ -125,9 +142,9 @@ class FeeTypeForm(forms.ModelForm):
         model = FeeType
         fields = ['name', 'amount', 'description']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': "Oylik kontrakt to'lovi"}),
-            'amount': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '500000'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'name': forms.TextInput(attrs=fc("Oylik kontrakt to'lovi")),
+            'amount': forms.NumberInput(attrs=fc('500000')),
+            'description': forms.Textarea(attrs=fc(rows=2)),
         }
 
 
@@ -136,12 +153,12 @@ class StudentFeeForm(forms.ModelForm):
         model = StudentFee
         fields = ['student', 'fee_type', 'amount', 'discount_amount', 'due_date', 'academic_year']
         widgets = {
-            'student': forms.Select(attrs={'class': 'form-select'}),
-            'fee_type': forms.Select(attrs={'class': 'form-select'}),
+            'student': forms.Select(attrs=fs()),
+            'fee_type': forms.Select(attrs=fs()),
             'amount': forms.NumberInput(attrs={'class': 'form-control'}),
-            'discount_amount': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0'}),
-            'due_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'academic_year': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '2026-2027'}),
+            'discount_amount': forms.NumberInput(attrs=fc('0')),
+            'due_date': forms.DateInput(attrs=fc(type='date')),
+            'academic_year': forms.TextInput(attrs=fc('2026-2027')),
         }
 
 
@@ -150,10 +167,10 @@ class PaymentRecordForm(forms.ModelForm):
         model = PaymentRecord
         fields = ['paid_amount', 'payment_method', 'transaction_id', 'note']
         widgets = {
-            'paid_amount': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '500000'}),
-            'payment_method': forms.Select(attrs={'class': 'form-select'}),
-            'transaction_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tranzaksiya ID (ixtiyoriy)'}),
-            'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': "To'lov haqida izoh..."}),
+            'paid_amount': forms.NumberInput(attrs=fc('500000')),
+            'payment_method': forms.Select(attrs=fs()),
+            'transaction_id': forms.TextInput(attrs=fc('Tranzaksiya ID (ixtiyoriy)')),
+            'note': forms.Textarea(attrs=fc("To'lov haqida izoh...", rows=2)),
         }
 
 
@@ -162,11 +179,11 @@ class ExamForm(forms.ModelForm):
         model = Exam
         fields = ['title', 'subject', 'grade_class', 'exam_date', 'total_marks']
         widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1-Chorak Yakuniy Imtihoni'}),
-            'subject': forms.Select(attrs={'class': 'form-select'}),
-            'grade_class': forms.Select(attrs={'class': 'form-select'}),
-            'exam_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'total_marks': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '100'}),
+            'title': forms.TextInput(attrs=fc('1-Chorak Yakuniy Imtihoni')),
+            'subject': forms.Select(attrs=fs()),
+            'grade_class': forms.Select(attrs=fs()),
+            'exam_date': forms.DateInput(attrs=fc(type='date')),
+            'total_marks': forms.NumberInput(attrs=fc('100')),
         }
 
 
@@ -175,29 +192,25 @@ class AnnouncementForm(forms.ModelForm):
         model = Announcement
         fields = ['title', 'content', 'target_role', 'grade_class']
         widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': "E'lon sarlavhasi"}),
-            'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': "E'lon matni..."}),
-            'target_role': forms.Select(attrs={'class': 'form-select'}),
-            'grade_class': forms.Select(attrs={'class': 'form-select'}),
+            'title': forms.TextInput(attrs=fc("E'lon sarlavhasi")),
+            'content': forms.Textarea(attrs=fc("E'lon matni...", rows=4)),
+            'target_role': forms.Select(attrs=fs()),
+            'grade_class': forms.Select(attrs=fs()),
         }
 
 
 class RegisterForm(forms.ModelForm):
     password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': '••••••••'}),
+        widget=forms.PasswordInput(attrs=fc('••••••••')),
         label="Parol"
     )
     password2 = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': '••••••••'}),
+        widget=forms.PasswordInput(attrs=fc('••••••••')),
         label="Parolni tasdiqlang"
     )
     role = forms.ChoiceField(
-        choices=[
-            ('STUDENT', "O'quvchi"),
-            ('TEACHER', "O'qituvchi"),
-            ('PARENT', "Ota-ona"),
-        ],
-        widget=forms.Select(attrs={'class': 'form-select'}),
+        choices=[('STUDENT', "O'quvchi"), ('TEACHER', "O'qituvchi"), ('PARENT', "Ota-ona")],
+        widget=forms.Select(attrs=fs()),
         label="Rolingiz"
     )
 
@@ -205,16 +218,15 @@ class RegisterForm(forms.ModelForm):
         model = User
         fields = ['username', 'first_name', 'last_name', 'email']
         widgets = {
-            'username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'username'}),
-            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ismingiz'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Familiyangiz'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'email@example.com'}),
+            'username': forms.TextInput(attrs=fc('username')),
+            'first_name': forms.TextInput(attrs=fc('Ismingiz')),
+            'last_name': forms.TextInput(attrs=fc('Familiyangiz')),
+            'email': forms.EmailInput(attrs=fc('email@example.com')),
         }
 
     def clean(self):
         cleaned_data = super().clean()
-        p1 = cleaned_data.get('password')
-        p2 = cleaned_data.get('password2')
+        p1, p2 = cleaned_data.get('password'), cleaned_data.get('password2')
         if p1 and p2 and p1 != p2:
             raise forms.ValidationError("Parollar mos kelmadi!")
         return cleaned_data
