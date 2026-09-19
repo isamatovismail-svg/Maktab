@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}404 Topilmadi — Smart Maktab{% endblock %}
+{% block content %}
+<div class="glass-card" style="max-width: 500px; margin: 60px auto; text-align: center; padding: 40px;">
+    <div style="font-size: 64px; color: var(--accent-cyan); margin-bottom: 16px;"><i class="fa-solid fa-compass"></i></div>
+    <h2 style="font-size: 24px; font-weight: 800; color: var(--text-main); margin-bottom: 8px;">404 — Sahifa Topilmadi</h2>
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">Siz qidirayotgan sahifa mavjud emas yoki ko'chirilgan.</p>
+    <a href="{% url 'home' %}" class="btn-primary"><i class="fa-solid fa-house"></i> Bosh Sahifaga Qaytish</a>
+</div>
+{% endblock %}

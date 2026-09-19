@@ -10,9 +10,6 @@ def user_role_context(request):
             'is_admin': False,
             'is_teacher': False,
             'is_student': False,
-            'is_parent': False,
-            'is_accountant': False,
-            'is_receptionist': False,
         }
 
     role = get_user_role(request.user)
@@ -21,10 +18,7 @@ def user_role_context(request):
     return {
         'user_role': role,
         'unread_notifications_count': unread_count,
-        'is_admin': role in (Role.SUPER_ADMIN, Role.ADMIN),
-        'is_teacher': role in (Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER),
+        'is_admin': role == Role.ADMIN,
+        'is_teacher': role == Role.TEACHER,
         'is_student': role == Role.STUDENT,
-        'is_parent': role == Role.PARENT,
-        'is_accountant': role in (Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT),
-        'is_receptionist': role in (Role.SUPER_ADMIN, Role.ADMIN, Role.RECEPTIONIST),
     }

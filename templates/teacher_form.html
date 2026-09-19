@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}O'qituvchini Tahrirlash — Smart Maktab{% endblock %}
+{% block header_title %}O'qituvchini Tahrirlash{% endblock %}
+{% block header_subtitle %}{{ teacher.first_name }} {{ teacher.last_name }} ma'lumotlarini yangilash{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 650px; margin: 0 auto;">
+    <form method="POST">
+        {% csrf_token %}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+                <label>Ismi:</label>
+                {{ form.first_name }}
+            </div>
+            <div class="form-group">
+                <label>Familiyasi:</label>
+                {{ form.last_name }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Asosiy (Bosh) Fani:</label>
+            {{ form.subject }}
+        </div>
+
+        <div class="form-group">
+            <label>Biriktirilgan Barcha Fanlar (Ctrl tugmasini bosib bir nechta tanlang):</label>
+            {{ form.assigned_subjects }}
+        </div>
+
+        <div class="form-group">
+            <label>Biriktirilgan Sinflar (Ctrl tugmasini bosib bir nechta tanlang):</label>
+            {{ form.assigned_classes }}
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+                <label>Telefon raqami:</label>
+                {{ form.phone }}
+            </div>
+            <div class="form-group">
+                <label>Malaka toifasi:</label>
+                {{ form.qualification }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Bio / Qo'shimcha ma'lumot:</label>
+            {{ form.bio }}
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+            <a href="{% url 'teacher_list' %}" class="btn-secondary">Bekor qilish</a>
+            <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Saqlash</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

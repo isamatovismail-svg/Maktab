@@ -1,8 +1,8 @@
 from django import forms
 from django.contrib.auth.models import User
 from .models import (
-    Student, ParentProfile, Teacher, Subject, GradeClass, Homework,
-    HomeworkSubmission, Grade, Quiz, Question, Timetable, FeeType,
+    Student, Teacher, Subject, GradeClass, Homework,
+    HomeworkSubmission, Grade, Lesson, Quiz, Question, Timetable, FeeType,
     StudentFee, PaymentRecord, Exam, ExamResult, Announcement
 )
 
@@ -28,7 +28,7 @@ class StudentForm(forms.ModelForm):
         model = Student
         fields = [
             'first_name', 'last_name', 'birth_date', 'gender', 'grade_class',
-            'phone', 'address', 'parent', 'parent_phone', 'emergency_contact',
+            'phone', 'address', 'parent_phone', 'emergency_contact',
             'status', 'profile_photo', 'telegram_id'
         ]
         widgets = {
@@ -39,26 +39,11 @@ class StudentForm(forms.ModelForm):
             'grade_class': forms.Select(attrs=fs()),
             'phone': forms.TextInput(attrs=fc('+998901234567')),
             'address': forms.Textarea(attrs=fc('Yashash manzili...', rows=2)),
-            'parent': forms.Select(attrs=fs()),
             'parent_phone': forms.TextInput(attrs=fc('+998909876543')),
             'emergency_contact': forms.TextInput(attrs=fc('Shoshilinch aloqa kishi va telefon')),
             'status': forms.Select(attrs=fs()),
             'profile_photo': forms.FileInput(attrs={'class': 'form-control'}),
             'telegram_id': forms.TextInput(attrs=fc('123456789')),
-        }
-
-
-class ParentProfileForm(forms.ModelForm):
-    class Meta:
-        model = ParentProfile
-        fields = ['first_name', 'last_name', 'phone', 'email', 'occupation', 'address']
-        widgets = {
-            'first_name': forms.TextInput(attrs=fc('Ismi')),
-            'last_name': forms.TextInput(attrs=fc('Familiyasi')),
-            'phone': forms.TextInput(attrs=fc('+998901234567')),
-            'email': forms.EmailInput(attrs=fc('email@example.com')),
-            'occupation': forms.TextInput(attrs=fc('Ish joyi / kasbi')),
-            'address': forms.Textarea(attrs=fc('Manzil', rows=2)),
         }
 
 
@@ -81,6 +66,36 @@ class GradeClassForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs=fc('9-A')),
             'class_teacher': forms.Select(attrs=fs()),
+        }
+
+
+class TeacherForm(forms.ModelForm):
+    class Meta:
+        model = Teacher
+        fields = ['first_name', 'last_name', 'subject', 'assigned_subjects', 'assigned_classes', 'phone', 'qualification', 'bio']
+        widgets = {
+            'first_name': forms.TextInput(attrs=fc('Ismi')),
+            'last_name': forms.TextInput(attrs=fc('Familiyasi')),
+            'subject': forms.Select(attrs=fs()),
+            'assigned_subjects': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
+            'assigned_classes': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
+            'phone': forms.TextInput(attrs=fc('+998901234567')),
+            'qualification': forms.TextInput(attrs=fc('Oliy toifali')),
+            'bio': forms.Textarea(attrs=fc('Qisqacha bio...', rows=3)),
+        }
+
+
+class LessonForm(forms.ModelForm):
+    class Meta:
+        model = Lesson
+        fields = ['title', 'subject', 'teacher', 'grade_class', 'date', 'description']
+        widgets = {
+            'title': forms.TextInput(attrs=fc('Dars mavzusi sarlavhasi')),
+            'subject': forms.Select(attrs=fs()),
+            'teacher': forms.Select(attrs=fs()),
+            'grade_class': forms.Select(attrs=fs()),
+            'date': forms.DateInput(attrs=fc(type='date')),
+            'description': forms.Textarea(attrs=fc("Dars haqida batafsil ma'lumot...", rows=3)),
         }
 
 
@@ -126,15 +141,23 @@ class HomeworkSubmissionForm(forms.ModelForm):
 class GradeForm(forms.ModelForm):
     class Meta:
         model = Grade
-        fields = ['student', 'subject', 'score', 'grade_type', 'date', 'comment']
+        fields = ['student', 'teacher', 'subject', 'lesson', 'score', 'grade_type', 'date', 'comment']
         widgets = {
             'student': forms.Select(attrs=fs()),
+            'teacher': forms.Select(attrs=fs()),
             'subject': forms.Select(attrs=fs()),
+            'lesson': forms.Select(attrs=fs()),
             'score': forms.NumberInput(attrs=fc('5', min=1, max=100)),
             'grade_type': forms.Select(attrs=fs()),
             'date': forms.DateInput(attrs=fc(type='date')),
             'comment': forms.TextInput(attrs=fc('Darsdagi faolligi uchun')),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['teacher'].required = False
+        self.fields['lesson'].required = False
+
 
 
 class FeeTypeForm(forms.ModelForm):
@@ -209,7 +232,7 @@ class RegisterForm(forms.ModelForm):
         label="Parolni tasdiqlang"
     )
     role = forms.ChoiceField(
-        choices=[('STUDENT', "O'quvchi"), ('TEACHER', "O'qituvchi"), ('PARENT', "Ota-ona")],
+        choices=[('STUDENT', "O'quvchi"), ('TEACHER', "O'qituvchi")],
         widget=forms.Select(attrs=fs()),
         label="Rolingiz"
     )

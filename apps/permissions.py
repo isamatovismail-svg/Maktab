@@ -8,45 +8,36 @@ from django.contrib import messages
 logger = logging.getLogger('apps')
 
 class Role:
-    SUPER_ADMIN = 'SUPER_ADMIN'
     ADMIN = 'ADMIN'
     TEACHER = 'TEACHER'
-    ACCOUNTANT = 'ACCOUNTANT'
-    RECEPTIONIST = 'RECEPTIONIST'
     STUDENT = 'STUDENT'
-    PARENT = 'PARENT'
 
     CHOICES = [
-        (SUPER_ADMIN, 'Super Admin'),
         (ADMIN, 'Administrator'),
         (TEACHER, "O'qituvchi"),
-        (ACCOUNTANT, 'Hisobchi (Accountant)'),
-        (RECEPTIONIST, 'Qabulxona (Receptionist)'),
         (STUDENT, "O'quvchi"),
-        (PARENT, 'Ota-ona (Parent)'),
     ]
 
 def get_user_role(user):
-    """Determine user's system role based on profile association or flags."""
+    """Determine user's system role (ADMIN, TEACHER, or STUDENT)."""
     if not user or not user.is_authenticated:
         return None
-    if user.is_superuser:
-        return Role.SUPER_ADMIN
+    if user.is_superuser or user.is_staff:
+        return Role.ADMIN
 
     # Check UserProfile if linked
     if hasattr(user, 'profile') and user.profile.role:
-        return user.profile.role
+        r = user.profile.role
+        if r in [Role.ADMIN, Role.TEACHER, Role.STUDENT]:
+            return r
+        if r == 'SUPER_ADMIN':
+            return Role.ADMIN
 
     # Fallbacks based on profiles
     if hasattr(user, 'teacher_profile'):
         return Role.TEACHER
     if hasattr(user, 'student_profile'):
         return Role.STUDENT
-    if hasattr(user, 'parent_profile'):
-        return Role.PARENT
-
-    if user.is_staff:
-        return Role.ADMIN
 
     return Role.STUDENT
 
@@ -59,7 +50,7 @@ class RoleRequiredMixin(AccessMixin):
             return self.handle_no_permission()
 
         user_role = get_user_role(request.user)
-        if self.allowed_roles and user_role not in self.allowed_roles and user_role != Role.SUPER_ADMIN:
+        if self.allowed_roles and user_role not in self.allowed_roles and user_role != Role.ADMIN:
             logger.warning(
                 f"Unauthorized role access attempt: user={request.user.username}, role={user_role}, path={request.path}"
             )
@@ -75,7 +66,7 @@ def role_required(*allowed_roles):
             if not request.user.is_authenticated:
                 return redirect('login')
             user_role = get_user_role(request.user)
-            if allowed_roles and user_role not in allowed_roles and user_role != Role.SUPER_ADMIN:
+            if allowed_roles and user_role not in allowed_roles and user_role != Role.ADMIN:
                 logger.warning(
                     f"Unauthorized role access attempt: user={request.user.username}, role={user_role}, path={request.path}"
                 )

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Smart Maktab — Elektron Kundalik & Bilim.uz Platformasi{% endblock %}</title>
+    <title>{% block title %}Smart Maktab — Ta'lim Tizimi{% endblock %}</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -105,6 +105,7 @@
             flex-direction: column;
             gap: 6px;
             flex: 1;
+            overflow-y: auto;
         }
 
         .nav-section-label {
@@ -270,6 +271,23 @@
             border-color: rgba(255, 255, 255, 0.2);
         }
 
+        /* Alert Messages */
+        .messages-container {
+            margin-bottom: 24px;
+        }
+        .alert {
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; }
+        .alert-error { background: rgba(244, 63, 94, 0.2); border: 1px solid rgba(244, 63, 94, 0.4); color: #f87171; }
+
         /* Buttons */
         .btn-primary {
             background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
@@ -311,6 +329,18 @@
 
         .btn-secondary:hover {
             background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-danger {
+            background: rgba(244, 63, 94, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(244, 63, 94, 0.4);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
         }
 
         /* Tables */
@@ -406,12 +436,12 @@
             </div>
             <div>
                 <div class="brand-title">SmartMaktab</div>
-                <div class="brand-subtitle">Kundalik & Bilim.uz</div>
+                <div class="brand-subtitle">Maktab Boshqaruvi</div>
             </div>
         </div>
 
         <ul class="nav-menu">
-            <li class="nav-section-label">Asosiy</li>
+            <li class="nav-section-label">Menyu</li>
             <li class="nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
                 <a href="{% url 'home' %}">
                     <i class="fa-solid fa-chart-pie"></i>
@@ -419,53 +449,121 @@
                 </a>
             </li>
 
-            <li class="nav-section-label">Kundalik.uz Tizimi</li>
-            <li class="nav-item {% if request.resolver_match.url_name == 'gradebook' %}active{% endif %}">
-                <a href="{% url 'gradebook' %}">
-                    <i class="fa-solid fa-book-open"></i>
-                    <span>Baholar Jurnali</span>
-                </a>
-            </li>
-            <li class="nav-item {% if request.resolver_match.url_name == 'attendance' %}active{% endif %}">
-                <a href="{% url 'attendance' %}">
-                    <i class="fa-solid fa-clipboard-user"></i>
-                    <span>Yo'qlama / Davomat</span>
-                </a>
-            </li>
-            <li class="nav-item {% if request.resolver_match.url_name == 'timetable' %}active{% endif %}">
-                <a href="{% url 'timetable' %}">
-                    <i class="fa-solid fa-calendar-days"></i>
-                    <span>Dars Jadvali</span>
-                </a>
-            </li>
-            <li class="nav-item {% if request.resolver_match.url_name == 'homework_list' %}active{% endif %}">
-                <a href="{% url 'homework_list' %}">
-                    <i class="fa-solid fa-list-check"></i>
-                    <span>Uyga Vazifalar</span>
-                </a>
-            </li>
-
-            <li class="nav-section-label">Bilim.uz Testlar</li>
-            <li class="nav-item {% if request.resolver_match.url_name == 'quiz_list' or request.resolver_match.url_name == 'quiz_take' %}active{% endif %}">
-                <a href="{% url 'quiz_list' %}">
-                    <i class="fa-solid fa-brain"></i>
-                    <span>Onlayn Testlar</span>
-                </a>
-            </li>
-            <li class="nav-item {% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}">
-                <a href="{% url 'leaderboard' %}">
-                    <i class="fa-solid fa-trophy"></i>
-                    <span>Reyting (Leaderboard)</span>
-                </a>
-            </li>
-
-            <li class="nav-section-label">Boshqaruv</li>
-            <li class="nav-item {% if 'student' in request.resolver_match.url_name %}active{% endif %}">
-                <a href="{% url 'student_list' %}">
-                    <i class="fa-solid fa-users"></i>
-                    <span>O'quvchilar Bazasi</span>
-                </a>
-            </li>
+            {% if is_admin %}
+                <li class="nav-section-label">Admin Boshqaruvi</li>
+                <li class="nav-item {% if 'teacher' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'teacher_list' %}">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                        <span>O'qituvchilar</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if 'student' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'student_list' %}">
+                        <i class="fa-solid fa-user-graduate"></i>
+                        <span>O'quvchilar</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if 'subject' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'subject_list' %}">
+                        <i class="fa-solid fa-book"></i>
+                        <span>Fanlar</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if 'lesson' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'lesson_list' %}">
+                        <i class="fa-solid fa-chalkboard"></i>
+                        <span>Darslar</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'gradebook' %}active{% endif %}">
+                    <a href="{% url 'gradebook' %}">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span>Baholar Jurnali</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'timetable' %}active{% endif %}">
+                    <a href="{% url 'timetable' %}">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Dars Jadvali</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if 'fee' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'fee_list' %}">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                        <span>To'lovlar</span>
+                    </a>
+                </li>
+            {% elif is_teacher %}
+                <li class="nav-section-label">O'qituvchi Xonasi</li>
+                <li class="nav-item {% if 'lesson' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'lesson_list' %}">
+                        <i class="fa-solid fa-chalkboard"></i>
+                        <span>Mening Darslarim</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'gradebook' %}active{% endif %}">
+                    <a href="{% url 'gradebook' %}">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span>Mening Baholarim</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if 'student' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'student_list' %}">
+                        <i class="fa-solid fa-user-graduate"></i>
+                        <span>Mening O'quvchilarim</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'attendance' %}active{% endif %}">
+                    <a href="{% url 'attendance' %}">
+                        <i class="fa-solid fa-clipboard-user"></i>
+                        <span>Yo'qlama / Davomat</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'homework_list' %}active{% endif %}">
+                    <a href="{% url 'homework_list' %}">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Uyga Vazifalar</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'timetable' %}active{% endif %}">
+                    <a href="{% url 'timetable' %}">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Dars Jadvali</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="nav-section-label">O'quvchi Kabineti</li>
+                <li class="nav-item {% if 'lesson' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'lesson_list' %}">
+                        <i class="fa-solid fa-chalkboard"></i>
+                        <span>Darslarim</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'gradebook' %}active{% endif %}">
+                    <a href="{% url 'gradebook' %}">
+                        <i class="fa-solid fa-award"></i>
+                        <span>Mening Baholarim</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'homework_list' %}active{% endif %}">
+                    <a href="{% url 'homework_list' %}">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Uyga Vazifalar</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'timetable' %}active{% endif %}">
+                    <a href="{% url 'timetable' %}">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Dars Jadvali</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if 'quiz' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'quiz_list' %}">
+                        <i class="fa-solid fa-brain"></i>
+                        <span>Onlayn Testlar</span>
+                    </a>
+                </li>
+            {% endif %}
         </ul>
 
         {% if user.is_authenticated %}
@@ -476,7 +574,9 @@
                 </div>
                 <div>
                     <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
-                    <div class="user-role">{% if user.is_superuser %}Administrator{% else %}O'qituvchi{% endif %}</div>
+                    <div class="user-role">
+                        {% if is_admin %}Admin{% elif is_teacher %}O'qituvchi{% else %}O'quvchi{% endif %}
+                    </div>
                 </div>
             </div>
             <a href="{% url 'logout' %}" class="btn-logout" title="Chiqish">
@@ -495,7 +595,7 @@
         <header class="top-header">
             <div class="header-title">
                 <h1>{% block header_title %}Smart Maktab Dashboard{% endblock %}</h1>
-                <p>{% block header_subtitle %}Elektron Ta'lim, Baholash va Telegram Bot Platformasi{% endblock %}</p>
+                <p>{% block header_subtitle %}Elektron Ta'lim va Boshqaruv Platformasi{% endblock %}</p>
             </div>
             <div class="header-actions">
                 <a href="https://t.me/" target="_blank" class="telegram-badge">
@@ -503,6 +603,16 @@
                 </a>
             </div>
         </header>
+
+        {% if messages %}
+        <div class="messages-container">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                <i class="fa-solid fa-circle-info"></i> {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         {% block content %}{% endblock %}
     </main>

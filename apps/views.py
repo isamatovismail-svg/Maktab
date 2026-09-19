@@ -13,12 +13,12 @@ from django.contrib import messages
 
 from .models import (
     UserProfile, GradeClass, Subject, ParentProfile, Teacher, Student,
-    Timetable, Grade, Attendance, FeeType, StudentFee, PaymentRecord,
+    Timetable, Lesson, Grade, Attendance, FeeType, StudentFee, PaymentRecord,
     Homework, HomeworkSubmission, Exam, ExamResult, Announcement,
     Notification, Quiz, Question, QuizResult
 )
 from .forms import (
-    StudentForm, ParentProfileForm, SubjectForm, GradeClassForm, TimetableForm,
+    StudentForm, TeacherForm, SubjectForm, GradeClassForm, LessonForm, TimetableForm,
     HomeworkForm, HomeworkSubmissionForm, GradeForm, FeeTypeForm, StudentFeeForm,
     PaymentRecordForm, ExamForm, AnnouncementForm, RegisterForm
 )
@@ -28,7 +28,7 @@ from .utils import send_system_notification, export_queryset_to_csv
 logger = logging.getLogger('apps')
 
 
-# ── Authentication ────────────────────────────────────────────
+# ── Autentifikatsiya ──────────────────────────────────────────
 
 class UserLoginView(View):
     def get(self, request):
@@ -80,7 +80,7 @@ class UserRegisterView(View):
         return render(request, 'register.html', {'form': form})
 
 
-# ── Dashboard ─────────────────────────────────────────────────
+# ── Dashboard (Bosh Sahifa) ───────────────────────────────────
 
 class HomeView(LoginRequiredMixin, View):
     def get(self, request):
@@ -91,49 +91,151 @@ class HomeView(LoginRequiredMixin, View):
         context = {
             'today_date': today,
             'announcements': Announcement.objects.select_related('created_by').filter(
-                Q(target_role='ALL') | Q(target_role=role)
+                Q(target_role='ALL') |
+                (Q(target_role='TEACHERS') if role == Role.TEACHER else Q()) |
+                (Q(target_role='STUDENTS') if role == Role.STUDENT else Q())
             )[:5],
         }
 
-        if role == Role.PARENT:
-            return redirect('parent_dashboard')
-
+        # 1. STUDENT DASHBOARD
         if role == Role.STUDENT:
             student = getattr(user, 'student_profile', None) or Student.objects.filter(user=user).first()
-            context.update({
-                'student': student,
-                'student_grades': Grade.objects.filter(student=student).select_related('subject')[:8] if student else [],
-                'student_attendances': Attendance.objects.filter(student=student).select_related('subject')[:5] if student else [],
-                'student_fees': StudentFee.objects.filter(student=student).select_related('fee_type') if student else [],
-                'student_homeworks': Homework.objects.filter(grade_class=student.grade_class)[:5] if (student and student.grade_class) else [],
-            })
+            if student:
+                grades = Grade.objects.filter(student=student).select_related('subject', 'teacher', 'lesson')[:10]
+                attendances = Attendance.objects.filter(student=student).select_related('subject')[:5]
+                lessons = Lesson.objects.filter(grade_class=student.grade_class).select_related('subject', 'teacher')[:5] if student.grade_class else []
+                homeworks = Homework.objects.filter(grade_class=student.grade_class)[:5] if student.grade_class else []
+                avg_score = grades.aggregate(avg=Avg('score'))['avg'] or 0
+                context.update({
+                    'student': student,
+                    'student_grades': grades,
+                    'student_attendances': attendances,
+                    'student_lessons': lessons,
+                    'student_homeworks': homeworks,
+                    'avg_score': round(avg_score, 1),
+                })
             return render(request, 'home.html', context)
 
-        # Admin / Teacher dashboard
+        # 2. TEACHER DASHBOARD
+        if role == Role.TEACHER:
+            teacher = getattr(user, 'teacher_profile', None) or Teacher.objects.filter(user=user).first()
+            if teacher:
+                my_subjects = (Subject.objects.filter(pk=teacher.subject_id) if teacher.subject else Subject.objects.none()) | teacher.assigned_subjects.all()
+                my_subjects = my_subjects.distinct()
+                my_classes = teacher.assigned_classes.all()
+                my_students = Student.objects.filter(grade_class__in=my_classes).distinct()
+                my_lessons = Lesson.objects.filter(teacher=teacher).select_related('subject', 'grade_class')[:8]
+                my_grades = Grade.objects.filter(teacher=teacher).select_related('student', 'subject', 'lesson')[:8]
+
+                context.update({
+                    'teacher': teacher,
+                    'my_subjects': my_subjects,
+                    'my_classes': my_classes,
+                    'my_students_count': my_students.count(),
+                    'my_lessons': my_lessons,
+                    'my_grades': my_grades,
+                })
+            return render(request, 'home.html', context)
+
+        # 3. ADMIN DASHBOARD
         context.update({
             'total_students': Student.objects.count(),
             'total_teachers': Teacher.objects.count(),
             'total_classes': GradeClass.objects.count(),
             'total_subjects': Subject.objects.count(),
-            'total_quizzes': Quiz.objects.count(),
+            'total_lessons': Lesson.objects.count(),
+            'total_grades': Grade.objects.count(),
             'today_timetables': Timetable.objects.filter(day_of_week=today.isoweekday()).select_related('grade_class', 'subject', 'teacher')[:6],
-            'recent_grades': Grade.objects.select_related('student', 'subject').all()[:6],
-            'top_students': Student.objects.annotate(avg_score=Avg('quiz_results__percentage')).filter(avg_score__isnull=False).order_by('-avg_score')[:5],
-            'pending_fees_total': StudentFee.objects.filter(status__in=['PENDING', 'OVERDUE', 'PARTIAL']).aggregate(total=Sum('amount'))['total'] or 0,
+            'recent_grades': Grade.objects.select_related('student', 'subject', 'teacher').all()[:8],
             'monthly_revenue': PaymentRecord.objects.filter(payment_date__month=today.month).aggregate(total=Sum('paid_amount'))['total'] or 0,
         })
         return render(request, 'home.html', context)
 
 
-# ── Students ──────────────────────────────────────────────────
+# ── O'qituvchilar Boshqaruvi (Admin uchun) ───────────────────
 
-class StudentListView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER, Role.RECEPTIONIST, Role.ACCOUNTANT]
+class TeacherListView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN]
 
     def get(self, request):
+        search_query = request.GET.get('q', '').strip()
+        teachers = Teacher.objects.select_related('subject').prefetch_related('assigned_subjects', 'assigned_classes').all()
+        if search_query:
+            teachers = teachers.filter(
+                Q(first_name__icontains=search_query) | Q(last_name__icontains=search_query) |
+                Q(phone__icontains=search_query)
+            )
+        return render(request, 'teachers.html', {
+            'teachers': teachers,
+            'search_query': search_query,
+            'form': TeacherForm(),
+            'subjects': Subject.objects.all(),
+            'classes': GradeClass.objects.all(),
+        })
+
+
+class TeacherCreateView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN]
+
+    def post(self, request):
+        form = TeacherForm(request.POST)
+        if form.is_valid():
+            teacher = form.save()
+            messages.success(request, f"O'qituvchi {teacher.first_name} {teacher.last_name} muvaffaqiyatli qo'shildi!")
+            return redirect('teacher_list')
+        messages.error(request, "O'qituvchini qo'shishda xatolik!")
+        return redirect('teacher_list')
+
+
+class TeacherUpdateView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN]
+
+    def get(self, request, pk):
+        teacher = get_object_or_404(Teacher, pk=pk)
+        return render(request, 'teacher_form.html', {
+            'teacher': teacher,
+            'form': TeacherForm(instance=teacher),
+        })
+
+    def post(self, request, pk):
+        teacher = get_object_or_404(Teacher, pk=pk)
+        form = TeacherForm(request.POST, instance=teacher)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"O'qituvchi {teacher.first_name} ma'lumotlari yangilandi!")
+            return redirect('teacher_list')
+        return render(request, 'teacher_form.html', {'teacher': teacher, 'form': form})
+
+
+class TeacherDeleteView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN]
+
+    def post(self, request, pk):
+        teacher = get_object_or_404(Teacher, pk=pk)
+        name = f"{teacher.first_name} {teacher.last_name}"
+        teacher.delete()
+        messages.success(request, f"O'qituvchi {name} o'chirildi.")
+        return redirect('teacher_list')
+
+
+# ── O'quvchilar Boshqaruvi ───────────────────────────────────
+
+class StudentListView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN, Role.TEACHER]
+
+    def get(self, request):
+        role = get_user_role(request.user)
         class_id = request.GET.get('class_id')
         search_query = request.GET.get('q', '').strip()
-        students = Student.objects.select_related('grade_class', 'parent').all()
+
+        students = Student.objects.select_related('grade_class').all()
+
+        if role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            if teacher:
+                my_classes = teacher.assigned_classes.all()
+                students = students.filter(grade_class__in=my_classes)
+
         if class_id:
             students = students.filter(grade_class_id=class_id)
         if search_query:
@@ -141,6 +243,7 @@ class StudentListView(RoleRequiredMixin, View):
                 Q(first_name__icontains=search_query) | Q(last_name__icontains=search_query) |
                 Q(student_id__icontains=search_query) | Q(phone__icontains=search_query)
             )
+
         page_obj = Paginator(students, 15).get_page(request.GET.get('page'))
         return render(request, 'students.html', {
             'page_obj': page_obj,
@@ -152,25 +255,31 @@ class StudentListView(RoleRequiredMixin, View):
 
 
 class StudentProfileView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER, Role.RECEPTIONIST, Role.ACCOUNTANT, Role.STUDENT, Role.PARENT]
+    allowed_roles = [Role.ADMIN, Role.TEACHER, Role.STUDENT]
 
     def get(self, request, pk):
-        student = get_object_or_404(Student.objects.select_related('grade_class', 'parent'), pk=pk)
+        student = get_object_or_404(Student.objects.select_related('grade_class'), pk=pk)
         role = get_user_role(request.user)
 
-        # IDOR Protection
+        # IDOR and Teacher workspace protection
         if role == Role.STUDENT and getattr(request.user, 'student_profile', None) != student:
             raise PermissionDenied("Boshqa o'quvchi profilini ko'rish taqiqlangan.")
-        if role == Role.PARENT and student.parent != getattr(request.user, 'parent_profile', None):
-            raise PermissionDenied("Boshqa o'quvchi profilini ko'rish taqiqlangan.")
+
+        if role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            if not teacher or not teacher.assigned_classes.filter(pk=student.grade_class_id).exists():
+                # Check if timetable has teacher
+                if not Timetable.objects.filter(teacher=teacher, grade_class=student.grade_class).exists():
+                    raise PermissionDenied("Boshqa o'qituvchining o'quvchisini ko'rish taqiqlangan.")
 
         attendances = Attendance.objects.filter(student=student).select_related('subject')[:15]
+        grades = Grade.objects.filter(student=student).select_related('subject', 'teacher', 'lesson')[:15]
         total_att = attendances.count()
         present_att = attendances.filter(status='B').count()
 
         return render(request, 'student_profile.html', {
             'student': student,
-            'grades': Grade.objects.filter(student=student).select_related('subject')[:15],
+            'grades': grades,
             'attendances': attendances,
             'fees': StudentFee.objects.filter(student=student).select_related('fee_type'),
             'submissions': HomeworkSubmission.objects.filter(student=student).select_related('homework__subject'),
@@ -179,7 +288,7 @@ class StudentProfileView(RoleRequiredMixin, View):
 
 
 class StudentCreateView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.RECEPTIONIST]
+    allowed_roles = [Role.ADMIN]
 
     def get(self, request):
         return render(request, 'student_form.html', {'form': StudentForm()})
@@ -194,7 +303,7 @@ class StudentCreateView(RoleRequiredMixin, View):
 
 
 class StudentUpdateView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.RECEPTIONIST]
+    allowed_roles = [Role.ADMIN]
 
     def get(self, request, pk):
         student = get_object_or_404(Student, pk=pk)
@@ -211,7 +320,7 @@ class StudentUpdateView(RoleRequiredMixin, View):
 
 
 class StudentDeleteView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN]
+    allowed_roles = [Role.ADMIN]
 
     def get(self, request, pk):
         return render(request, 'student_delete.html', {'student': get_object_or_404(Student, pk=pk)})
@@ -224,46 +333,138 @@ class StudentDeleteView(RoleRequiredMixin, View):
         return redirect('student_list')
 
 
-# ── Parent Dashboard ──────────────────────────────────────────
+# ── Darslar Boshqaruvi (Lesson Management) ───────────────────
 
-class ParentDashboardView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.PARENT]
-
+class LessonListView(LoginRequiredMixin, View):
     def get(self, request):
-        parent = getattr(request.user, 'parent_profile', None)
-        children = parent.children.all() if parent else Student.objects.none()
-        selected_id = request.GET.get('child_id')
-        child = children.filter(pk=selected_id).first() if selected_id else children.first()
+        role = get_user_role(request.user)
+        if role == Role.ADMIN:
+            lessons = Lesson.objects.select_related('subject', 'teacher', 'grade_class').all()
+        elif role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            lessons = Lesson.objects.filter(teacher=teacher).select_related('subject', 'teacher', 'grade_class') if teacher else Lesson.objects.none()
+        else: # STUDENT
+            student = getattr(request.user, 'student_profile', None)
+            lessons = Lesson.objects.filter(grade_class=student.grade_class).select_related('subject', 'teacher', 'grade_class') if (student and student.grade_class) else Lesson.objects.none()
 
-        return render(request, 'parent_dashboard.html', {
-            'children': children,
-            'selected_child': child,
-            'child_attendance': Attendance.objects.filter(student=child).select_related('subject')[:10] if child else [],
-            'child_grades': Grade.objects.filter(student=child).select_related('subject')[:10] if child else [],
-            'child_fees': StudentFee.objects.filter(student=child).select_related('fee_type') if child else [],
-            'child_homeworks': Homework.objects.filter(grade_class=child.grade_class)[:5] if (child and child.grade_class) else [],
+        return render(request, 'lessons.html', {
+            'lessons': lessons,
+            'form': LessonForm(),
+            'subjects': Subject.objects.all(),
+            'classes': GradeClass.objects.all(),
+            'teachers': Teacher.objects.all(),
         })
 
 
-# ── Grade Book ────────────────────────────────────────────────
+class LessonCreateView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN, Role.TEACHER]
+
+    def post(self, request):
+        role = get_user_role(request.user)
+        form = LessonForm(request.POST)
+        if form.is_valid():
+            lesson = form.save(commit=False)
+            if role == Role.TEACHER:
+                teacher = getattr(request.user, 'teacher_profile', None)
+                if not teacher:
+                    raise PermissionDenied("O'qituvchi profili biriktirilmagan.")
+                lesson.teacher = teacher
+
+            try:
+                lesson.full_clean()
+                lesson.save()
+                messages.success(request, f"Dars '{lesson.title}' saqlandi!")
+            except ValidationError as e:
+                messages.error(request, f"Xatolik: {e.messages[0]}")
+            return redirect('lesson_list')
+        messages.error(request, "Dars yaratishda formada xatolik yuz berdi!")
+        return redirect('lesson_list')
+
+
+class LessonUpdateView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN, Role.TEACHER]
+
+    def get(self, request, pk):
+        lesson = get_object_or_404(Lesson, pk=pk)
+        role = get_user_role(request.user)
+        if role == Role.TEACHER and lesson.teacher != getattr(request.user, 'teacher_profile', None):
+            raise PermissionDenied("Boshqa o'qituvchining darsini tahrirlash taqiqlangan!")
+        return render(request, 'lesson_form.html', {'form': LessonForm(instance=lesson), 'lesson': lesson})
+
+    def post(self, request, pk):
+        lesson = get_object_or_404(Lesson, pk=pk)
+        role = get_user_role(request.user)
+        if role == Role.TEACHER and lesson.teacher != getattr(request.user, 'teacher_profile', None):
+            raise PermissionDenied("Boshqa o'qituvchining darsini tahrirlash taqiqlangan!")
+        form = LessonForm(request.POST, instance=lesson)
+        if form.is_valid():
+            try:
+                updated_lesson = form.save(commit=False)
+                updated_lesson.full_clean()
+                updated_lesson.save()
+                messages.success(request, "Dars muvaffaqiyatli yangilandi!")
+                return redirect('lesson_list')
+            except ValidationError as e:
+                messages.error(request, f"Xatolik: {e.messages[0]}")
+        return render(request, 'lesson_form.html', {'form': form, 'lesson': lesson})
+
+
+class LessonDeleteView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN, Role.TEACHER]
+
+    def post(self, request, pk):
+        lesson = get_object_or_404(Lesson, pk=pk)
+        role = get_user_role(request.user)
+        if role == Role.TEACHER and lesson.teacher != getattr(request.user, 'teacher_profile', None):
+            raise PermissionDenied("Boshqa o'qituvchining darsini o'chirish taqiqlangan!")
+        lesson.delete()
+        messages.success(request, "Dars o'chirildi.")
+        return redirect('lesson_list')
+
+
+# ── Baholar Jurnali va Baholash (GradeBook & Evaluation) ──────
 
 class GradeBookView(LoginRequiredMixin, View):
     def get(self, request):
+        role = get_user_role(request.user)
         selected_class_id = request.GET.get('class_id')
         selected_subject_id = request.GET.get('subject_id')
+
+        classes = GradeClass.objects.all()
+        subjects = Subject.objects.all()
         students, grades_matrix = [], {}
+
+        if role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            if teacher:
+                classes = teacher.assigned_classes.all()
+                subjects = (Subject.objects.filter(pk=teacher.subject_id) if teacher.subject else Subject.objects.none()) | teacher.assigned_subjects.all()
+                subjects = subjects.distinct()
+
+        elif role == Role.STUDENT:
+            student = getattr(request.user, 'student_profile', None)
+            if student:
+                grades = Grade.objects.filter(student=student).select_related('subject', 'teacher', 'lesson')
+                return render(request, 'grades.html', {
+                    'student_mode': True,
+                    'student': student,
+                    'grades': grades,
+                })
 
         if selected_class_id:
             students = Student.objects.filter(grade_class_id=selected_class_id).select_related('grade_class')
-            grades_qs = Grade.objects.filter(student__in=students).select_related('subject', 'student')
+            grades_qs = Grade.objects.filter(student__in=students).select_related('subject', 'student', 'teacher', 'lesson')
             if selected_subject_id:
                 grades_qs = grades_qs.filter(subject_id=selected_subject_id)
+            if role == Role.TEACHER:
+                teacher = getattr(request.user, 'teacher_profile', None)
+                grades_qs = grades_qs.filter(teacher=teacher)
             for g in grades_qs:
                 grades_matrix.setdefault(g.student_id, []).append(g)
 
         return render(request, 'grades.html', {
-            'classes': GradeClass.objects.all(),
-            'subjects': Subject.objects.all(),
+            'classes': classes,
+            'subjects': subjects,
             'selected_class_id': selected_class_id,
             'selected_subject_id': selected_subject_id,
             'students': students,
@@ -272,24 +473,50 @@ class GradeBookView(LoginRequiredMixin, View):
         })
 
     def post(self, request):
-        if get_user_role(request.user) not in [Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER]:
+        role = get_user_role(request.user)
+        if role not in [Role.ADMIN, Role.TEACHER]:
             raise PermissionDenied("Baho qo'yish ruxsati yo'q.")
+
         form = GradeForm(request.POST)
         if form.is_valid():
-            grade = form.save()
-            messages.success(request, f"{grade.student.first_name}ga {grade.score} baho qo'yildi!")
-            if grade.student.user:
-                send_system_notification(
-                    grade.student.user, "Yangi Baho!",
-                    f"{grade.subject.name} fanidan {grade.score} ball olindingiz.",
-                    'EXAM', '/grades/'
-                )
+            grade = form.save(commit=False)
+            if role == Role.TEACHER:
+                teacher = getattr(request.user, 'teacher_profile', None)
+                if not teacher:
+                    raise PermissionDenied("O'qituvchi profili topilmadi.")
+                grade.teacher = teacher
+
+                student = form.cleaned_data.get('student')
+                subject = form.cleaned_data.get('subject')
+
+                # Strictly verify teacher assignment
+                if not student or not subject or not teacher.is_assigned_to_subject_and_class(subject, student.grade_class):
+                    raise PermissionDenied("Boshqa o'qituvchining fani yoki sinfiga baho qo'yish taqiqlangan!")
+            elif role == Role.ADMIN:
+                if not grade.teacher_id:
+                    teacher = Teacher.objects.filter(subject=grade.subject, assigned_classes=grade.student.grade_class).first() or Teacher.objects.filter(subject=grade.subject).first()
+                    if teacher:
+                        grade.teacher = teacher
+
+            try:
+                grade.full_clean()
+                grade.save()
+                messages.success(request, f"{grade.student.first_name}ga {grade.score} baho qo'yildi!")
+                if grade.student.user:
+                    send_system_notification(
+                        grade.student.user, "Yangi Baho!",
+                        f"{grade.subject.name} fanidan {grade.score} ball olindingiz.",
+                        'EXAM', '/grades/'
+                    )
+            except ValidationError as e:
+                messages.error(request, f"Xatolik: {e.messages[0] if hasattr(e, 'messages') else e}")
             return redirect(f'/grades/?class_id={grade.student.grade_class_id}&subject_id={grade.subject.id}')
-        messages.error(request, "Baho kiritishda xatolik yuz berdi!")
+        
+        messages.error(request, "Baho kiritishda formada xatolik yuz berdi!")
         return redirect('gradebook')
 
 
-# ── Attendance ────────────────────────────────────────────────
+# ── Yo'qlama / Davomat ────────────────────────────────────────
 
 class AttendanceView(LoginRequiredMixin, View):
     def get(self, request):
@@ -297,6 +524,17 @@ class AttendanceView(LoginRequiredMixin, View):
         selected_subject_id = request.GET.get('subject_id')
         selected_date = request.GET.get('date', datetime.date.today().isoformat())
         students, existing_status = [], {}
+
+        role = get_user_role(request.user)
+        classes = GradeClass.objects.all()
+        subjects = Subject.objects.all()
+
+        if role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            if teacher:
+                classes = teacher.assigned_classes.all()
+                subjects = (Subject.objects.filter(pk=teacher.subject_id) if teacher.subject else Subject.objects.none()) | teacher.assigned_subjects.all()
+                subjects = subjects.distinct()
 
         if selected_class_id and selected_subject_id:
             students = Student.objects.filter(grade_class_id=selected_class_id)
@@ -306,8 +544,8 @@ class AttendanceView(LoginRequiredMixin, View):
             existing_status = {a.student_id: a.status for a in attendances}
 
         return render(request, 'attendance.html', {
-            'classes': GradeClass.objects.all(),
-            'subjects': Subject.objects.all(),
+            'classes': classes,
+            'subjects': subjects,
             'selected_class_id': selected_class_id,
             'selected_subject_id': selected_subject_id,
             'selected_date': selected_date,
@@ -316,11 +554,20 @@ class AttendanceView(LoginRequiredMixin, View):
         })
 
     def post(self, request):
-        if get_user_role(request.user) not in [Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER]:
+        role = get_user_role(request.user)
+        if role not in [Role.ADMIN, Role.TEACHER]:
             raise PermissionDenied("Yo'qlama qilish ruxsati yo'q.")
         class_id = request.POST.get('class_id')
         subject_id = request.POST.get('subject_id')
         date_str = request.POST.get('date')
+
+        if role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            subject = get_object_or_404(Subject, pk=subject_id)
+            grade_class = get_object_or_404(GradeClass, pk=class_id)
+            if not teacher or not teacher.is_assigned_to_subject_and_class(subject, grade_class):
+                raise PermissionDenied("Boshqa o'qituvchining sinfi yoki faniga yo'qlama qilish taqiqlangan!")
+
         if class_id and subject_id and date_str:
             subject = get_object_or_404(Subject, pk=subject_id)
             for s in Student.objects.filter(grade_class_id=class_id):
@@ -332,11 +579,22 @@ class AttendanceView(LoginRequiredMixin, View):
         return redirect(f'/attendance/?class_id={class_id}&subject_id={subject_id}&date={date_str}')
 
 
-# ── Timetable ─────────────────────────────────────────────────
+# ── Dars Jadvali ──────────────────────────────────────────────
 
 class TimetableView(LoginRequiredMixin, View):
     def get(self, request):
         classes = GradeClass.objects.all()
+        role = get_user_role(request.user)
+
+        if role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            if teacher:
+                classes = teacher.assigned_classes.all()
+        elif role == Role.STUDENT:
+            student = getattr(request.user, 'student_profile', None)
+            if student and student.grade_class:
+                classes = GradeClass.objects.filter(pk=student.grade_class.pk)
+
         selected_class_id = request.GET.get('class_id', classes.first().id if classes.exists() else None)
         schedule_by_day = {}
         if selected_class_id:
@@ -352,8 +610,8 @@ class TimetableView(LoginRequiredMixin, View):
         })
 
     def post(self, request):
-        if get_user_role(request.user) not in [Role.SUPER_ADMIN, Role.ADMIN]:
-            raise PermissionDenied("Dars jadvalini o'zgartirish ruxsati yo'q.")
+        if get_user_role(request.user) != Role.ADMIN:
+            raise PermissionDenied("Dars jadvalini o'zgartirish ruxsati faqat Adminga berilgan.")
         form = TimetableForm(request.POST)
         if form.is_valid():
             try:
@@ -362,24 +620,44 @@ class TimetableView(LoginRequiredMixin, View):
                 obj.save()
                 messages.success(request, "Dars jadvaliga dars qo'shildi!")
             except ValidationError as e:
-                messages.error(request, e.messages[0] if e.messages else "Konflikt yuz berdi!")
+                messages.error(request, e.messages[0] if hasattr(e, 'messages') else "Konflikt yuz berdi!")
         else:
             messages.error(request, "Formada xatoliklar mavjud!")
         return redirect('timetable')
 
 
-# ── Fees & Payments ───────────────────────────────────────────
+# ── Fanlar va Sinflar Boshqaruvi (Admin uchun) ────────────────
+
+class SubjectListView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN, Role.TEACHER]
+
+    def get(self, request):
+        return render(request, 'subjects.html', {
+            'subjects': Subject.objects.all(),
+            'form': SubjectForm(),
+        })
+
+    def post(self, request):
+        if get_user_role(request.user) != Role.ADMIN:
+            raise PermissionDenied("Fan qo'shish faqat Admin uchun.")
+        form = SubjectForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Yangi fan qo'shildi!")
+            return redirect('subject_list')
+        messages.error(request, "Fan kiritishda xatolik!")
+        return redirect('subject_list')
+
+
+# ── To'lovlar (Fees & Payments) ───────────────────────────────
 
 class FeeListView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT, Role.STUDENT, Role.PARENT]
+    allowed_roles = [Role.ADMIN, Role.STUDENT]
 
     def get(self, request):
         role = get_user_role(request.user)
         if role == Role.STUDENT:
             fees = StudentFee.objects.filter(student=getattr(request.user, 'student_profile', None)).select_related('fee_type', 'student')
-        elif role == Role.PARENT:
-            parent = getattr(request.user, 'parent_profile', None)
-            fees = StudentFee.objects.filter(student__in=parent.children.all() if parent else []).select_related('fee_type', 'student')
         else:
             fees = StudentFee.objects.select_related('fee_type', 'student__grade_class').all()
 
@@ -396,7 +674,7 @@ class FeeListView(RoleRequiredMixin, View):
 
 
 class StudentFeeCreateView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT]
+    allowed_roles = [Role.ADMIN]
 
     def post(self, request):
         form = StudentFeeForm(request.POST)
@@ -415,7 +693,7 @@ class StudentFeeCreateView(RoleRequiredMixin, View):
 
 
 class PaymentRecordCreateView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT]
+    allowed_roles = [Role.ADMIN]
 
     def post(self, request, fee_id):
         fee = get_object_or_404(StudentFee, pk=fee_id)
@@ -436,31 +714,33 @@ class InvoicePrintView(LoginRequiredMixin, View):
         return render(request, 'invoice.html', {'fee': fee, 'payments': fee.payments.all()})
 
 
-# ── Homework ──────────────────────────────────────────────────
+# ── Uyga Vazifalar (Homework) ─────────────────────────────────
 
 class HomeworkListView(LoginRequiredMixin, View):
     def get(self, request):
         role = get_user_role(request.user)
         if role == Role.STUDENT:
             student = getattr(request.user, 'student_profile', None)
-            homeworks = Homework.objects.filter(grade_class=student.grade_class).select_related('grade_class', 'subject') if student else Homework.objects.none()
+            homeworks = Homework.objects.filter(grade_class=student.grade_class).select_related('grade_class', 'subject') if (student and student.grade_class) else Homework.objects.none()
+        elif role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            homeworks = Homework.objects.filter(teacher=teacher).select_related('grade_class', 'subject', 'teacher') if teacher else Homework.objects.none()
         else:
             homeworks = Homework.objects.select_related('grade_class', 'subject', 'teacher').all()
+
         return render(request, 'homework.html', {'homeworks': homeworks, 'form': HomeworkForm()})
 
     def post(self, request):
-        if get_user_role(request.user) not in [Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER]:
+        role = get_user_role(request.user)
+        if role not in [Role.ADMIN, Role.TEACHER]:
             raise PermissionDenied("Vazifa yaratish ruxsati yo'q.")
         form = HomeworkForm(request.POST, request.FILES)
         if form.is_valid():
-            hw = form.save()
+            hw = form.save(commit=False)
+            if role == Role.TEACHER:
+                hw.teacher = getattr(request.user, 'teacher_profile', None)
+            hw.save()
             messages.success(request, "Yangi uyga vazifa e'lon qilindi!")
-            for st in Student.objects.filter(grade_class=hw.grade_class):
-                if st.user:
-                    send_system_notification(
-                        st.user, f"Yangi Uyga Vazifa: {hw.subject.name}",
-                        f"{hw.title} (Muddat: {hw.due_date})", 'HOMEWORK', '/homework/'
-                    )
             return redirect('homework_list')
         messages.error(request, "Vazifa kiritishda xatolik!")
         return redirect('homework_list')
@@ -491,7 +771,7 @@ class HomeworkSubmitView(RoleRequiredMixin, View):
         return redirect('homework_list')
 
 
-# ── Exams ─────────────────────────────────────────────────────
+# ── Imtihonlar ────────────────────────────────────────────────
 
 class ExamListView(LoginRequiredMixin, View):
     def get(self, request):
@@ -501,7 +781,7 @@ class ExamListView(LoginRequiredMixin, View):
         })
 
     def post(self, request):
-        if get_user_role(request.user) not in [Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER]:
+        if get_user_role(request.user) not in [Role.ADMIN, Role.TEACHER]:
             raise PermissionDenied("Imtihon yaratish ruxsati yo'q.")
         form = ExamForm(request.POST)
         if form.is_valid():
@@ -513,7 +793,7 @@ class ExamListView(LoginRequiredMixin, View):
 
 
 class ExamResultEntryView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER]
+    allowed_roles = [Role.ADMIN, Role.TEACHER]
 
     def get(self, request, exam_id):
         exam = get_object_or_404(Exam.objects.select_related('grade_class', 'subject'), pk=exam_id)
@@ -535,28 +815,29 @@ class ExamResultEntryView(RoleRequiredMixin, View):
                     )
                 except ValueError:
                     pass
-        # Recalculate ranks
         for rank, result in enumerate(ExamResult.objects.filter(exam=exam).order_by('-percentage'), 1):
             result.rank = rank
             result.save()
-        messages.success(request, "Imtihon natijalari saqlandi va darajalar hisoblandi!")
+        messages.success(request, "Imtihon natijalari saqlandi!")
         return redirect('exam_list')
 
 
-# ── Announcements & Notifications ────────────────────────────
+# ── E'lonlar va Xabarnomalar ──────────────────────────────────
 
 class AnnouncementListView(LoginRequiredMixin, View):
     def get(self, request):
         role = get_user_role(request.user)
         return render(request, 'announcements.html', {
             'announcements': Announcement.objects.select_related('created_by', 'grade_class').filter(
-                Q(target_role='ALL') | Q(target_role=role)
+                Q(target_role='ALL') |
+                (Q(target_role='TEACHERS') if role == Role.TEACHER else Q()) |
+                (Q(target_role='STUDENTS') if role == Role.STUDENT else Q())
             ),
             'form': AnnouncementForm(),
         })
 
     def post(self, request):
-        if get_user_role(request.user) not in [Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER]:
+        if get_user_role(request.user) not in [Role.ADMIN, Role.TEACHER]:
             raise PermissionDenied("E'lon berish ruxsati yo'q.")
         form = AnnouncementForm(request.POST)
         if form.is_valid():
@@ -603,12 +884,8 @@ class QuizTakeView(LoginRequiredMixin, View):
 
         student = getattr(request.user, 'student_profile', None) or Student.objects.filter(user=request.user).first()
         if not student:
-            student_id = request.POST.get('student_id')
-            if student_id and get_user_role(request.user) in [Role.SUPER_ADMIN, Role.ADMIN, Role.TEACHER]:
-                student = get_object_or_404(Student, pk=student_id)
-            else:
-                messages.error(request, "Test topshirish uchun O'quvchi profili biriktirilgan bo'lishi kerak!")
-                return redirect('quiz_list')
+            messages.error(request, "Test topshirish uchun O'quvchi profili zarur!")
+            return redirect('quiz_list')
 
         correct = sum(1 for q in questions if request.POST.get(f'q_{q.id}') == q.correct_option)
         total = questions.count()
@@ -619,26 +896,20 @@ class QuizTakeView(LoginRequiredMixin, View):
         return render(request, 'quiz_result.html', {'result': result, 'quiz': quiz})
 
 
-class LeaderboardView(LoginRequiredMixin, View):
-    def get(self, request):
-        results = QuizResult.objects.select_related('student__grade_class', 'quiz').order_by('-percentage', '-score')[:25]
-        return render(request, 'leaderboard.html', {'results': results})
-
-
 # ── Export (CSV) ──────────────────────────────────────────────
 
 class ExportDataView(RoleRequiredMixin, View):
-    allowed_roles = [Role.SUPER_ADMIN, Role.ADMIN, Role.ACCOUNTANT, Role.TEACHER]
+    allowed_roles = [Role.ADMIN, Role.TEACHER]
 
     def get(self, request, model_type):
         if model_type == 'students':
             return export_queryset_to_csv(
                 Student.objects.select_related('grade_class').all(),
-                ['student_id', 'first_name', 'last_name', 'grade_class__name', 'phone', 'parent_phone', 'status'],
-                ['ID Kodi', 'Ismi', 'Familiyasi', 'Sinfi', 'Telefoni', 'Ota-ona Telefoni', 'Holati'],
+                ['student_id', 'first_name', 'last_name', 'grade_class__name', 'phone', 'status'],
+                ['ID Kodi', 'Ismi', 'Familiyasi', 'Sinfi', 'Telefoni', 'Holati'],
                 'oquvchilar_ruyxati.csv'
             )
-        if model_type == 'fees':
+        if model_type == 'fees' and get_user_role(request.user) == Role.ADMIN:
             return export_queryset_to_csv(
                 StudentFee.objects.select_related('student', 'fee_type').all(),
                 ['student__student_id', 'student__first_name', 'student__last_name', 'fee_type__name', 'amount', 'status', 'due_date'],

@@ -71,7 +71,16 @@ class Teacher(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='teacher_profile', null=True, blank=True)
     first_name = models.CharField(max_length=100, verbose_name="Ismi")
     last_name = models.CharField(max_length=100, verbose_name="Familiyasi")
-    subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=True, related_name='teachers', verbose_name="Bosh fani")
+    subject = models.ForeignKey(
+        Subject, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='primary_teachers', verbose_name="Bosh fani"
+    )
+    assigned_subjects = models.ManyToManyField(
+        Subject, blank=True, related_name='assigned_teachers', verbose_name="Biriktirilgan fanlar"
+    )
+    assigned_classes = models.ManyToManyField(
+        GradeClass, blank=True, related_name='assigned_teachers', verbose_name="Biriktirilgan sinflar"
+    )
     phone = models.CharField(max_length=20, verbose_name="Telefon raqami")
     qualification = models.CharField(max_length=150, blank=True, verbose_name="Ma'lumoti / Malaka toifasi")
     bio = models.TextField(blank=True, verbose_name="Qisqacha ma'lumot")
@@ -82,6 +91,37 @@ class Teacher(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.subject or 'Fansiz'})"
+
+    def is_assigned_to_subject_and_class(self, subject, grade_class):
+        """Check if teacher is assigned to teach subject in grade_class."""
+        if not subject or not grade_class:
+            return False
+        
+        # 1. Primary subject check
+        primary_ok = (self.subject_id == subject.pk)
+        
+        # 2. Assigned subjects M2M check
+        m2m_sub_ok = self.assigned_subjects.filter(pk=subject.pk).exists()
+        
+        # 3. Assigned classes M2M check
+        class_ok = self.assigned_classes.filter(pk=grade_class.pk).exists()
+        
+        if (primary_ok or m2m_sub_ok) and class_ok:
+            return True
+
+        # 4. Timetable check
+        if Timetable.objects.filter(teacher=self, subject=subject, grade_class=grade_class).exists():
+            return True
+
+        # 5. Existing Lesson check
+        if Lesson.objects.filter(teacher=self, subject=subject, grade_class=grade_class).exists():
+            return True
+
+        # Fallback: if teacher has primary subject AND is assigned to class
+        if primary_ok and class_ok:
+            return True
+
+        return False
 
 
 class Student(models.Model):
@@ -165,18 +205,49 @@ class Timetable(models.Model):
                 )
 
 
+class Lesson(models.Model):
+    title = models.CharField(max_length=200, verbose_name="Dars sarlavhasi")
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='lessons', verbose_name="Fan")
+    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='lessons', verbose_name="O'qituvchi")
+    grade_class = models.ForeignKey(GradeClass, on_delete=models.CASCADE, related_name='lessons', verbose_name="Sinf")
+    date = models.DateField(default=timezone.now, verbose_name="Dars o'tilish sanasi")
+    description = models.TextField(blank=True, verbose_name="Dars mavzusi / tavsifi")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Dars"
+        verbose_name_plural = "Darslar"
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.title} — {self.subject} ({self.grade_class.name})"
+
+    def clean(self):
+        super().clean()
+        if self.teacher and self.subject and self.grade_class:
+            if not self.teacher.is_assigned_to_subject_and_class(self.subject, self.grade_class):
+                raise ValidationError(
+                    f"O'qituvchi ({self.teacher}) {self.subject.name} fanidan "
+                    f"{self.grade_class.name} sinfiga biriktirilmagan!"
+                )
+
+
 class Grade(models.Model):
     GRADE_TYPES = [
         ('KUNDALIK', 'Kundalik dars'), ('NAZORAT', 'Nazorat ishi'),
         ('CHORAK', 'Choraklik baho'), ('HOMEWORK', 'Uyga vazifa'),
     ]
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='grades', verbose_name="O'quvchi", db_index=True)
+    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='grades', verbose_name="O'qituvchi", db_index=True, null=True, blank=True)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='grades', verbose_name="Fan", db_index=True)
+    lesson = models.ForeignKey(Lesson, on_delete=models.SET_NULL, null=True, blank=True, related_name='grades', verbose_name="Dars")
     score = models.IntegerField(verbose_name="Baho (1-5 yoki 1-100)")
     grade_type = models.CharField(max_length=20, choices=GRADE_TYPES, default='KUNDALIK', verbose_name="Baho turi")
     date = models.DateField(verbose_name="Sana", db_index=True)
     comment = models.CharField(max_length=255, blank=True, verbose_name="Izoh")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Baho"
@@ -185,6 +256,31 @@ class Grade(models.Model):
 
     def __str__(self):
         return f"{self.student} - {self.subject}: {self.score} ({self.date})"
+
+    def clean(self):
+        super().clean()
+        if not self.student_id:
+            raise ValidationError("O'quvchi ko'rsatilishi shart.")
+
+        if self.teacher_id:
+            if self.lesson:
+                if self.lesson.subject_id != self.subject_id:
+                    raise ValidationError("Baho fani va dars fani bir-biriga mos kelmaydi!")
+                if self.lesson.teacher_id != self.teacher_id:
+                    raise ValidationError("Ushbu dars boshqa o'qituvchiga tegishli! Siz faqat o'zingizning darsingiz uchun baho bera olasiz.")
+                if self.student and self.student.grade_class_id and self.student.grade_class_id != self.lesson.grade_class_id:
+                    raise ValidationError("O'quvchi ushbu dars o'tilayotgan sinfga tegishli emas!")
+
+            if self.student and self.student.grade_class and self.subject:
+                if not self.teacher.is_assigned_to_subject_and_class(self.subject, self.student.grade_class):
+                    raise ValidationError(
+                        f"O'qituvchi ({self.teacher.first_name} {self.teacher.last_name}) {self.subject.name} fanidan "
+                        f"{self.student.grade_class.name} sinfiga va o'quvchisiga biriktirilmagan!"
+                    )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class Attendance(models.Model):
@@ -382,7 +478,7 @@ class ExamResult(models.Model):
 class Announcement(models.Model):
     TARGET_ROLES = [
         ('ALL', "Barcha foydalanuvchilar"), ('TEACHERS', "Faqat o'qituvchilar"),
-        ('STUDENTS', "Faqat o'quvchilar"), ('PARENTS', "Faqat ota-onalar"),
+        ('STUDENTS', "Faqat o'quvchilar"),
     ]
     title = models.CharField(max_length=200, verbose_name="Sarlavha")
     content = models.TextField(verbose_name="E'lon matni")

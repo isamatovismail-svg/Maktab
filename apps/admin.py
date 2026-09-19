@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     UserProfile, GradeClass, Subject, ParentProfile, Teacher, Student,
-    Timetable, Grade, Attendance, FeeType, StudentFee, PaymentRecord,
+    Timetable, Lesson, Grade, Attendance, FeeType, StudentFee, PaymentRecord,
     Homework, HomeworkSubmission, Exam, ExamResult, Announcement,
     Notification, Quiz, Question, QuizResult
 )
@@ -33,6 +33,7 @@ class ParentProfileAdmin(admin.ModelAdmin):
 class TeacherAdmin(admin.ModelAdmin):
     list_display = ('first_name', 'last_name', 'subject', 'phone', 'qualification')
     search_fields = ('first_name', 'last_name', 'phone')
+    filter_horizontal = ('assigned_subjects', 'assigned_classes')
 
 
 @admin.register(Student)
@@ -48,10 +49,17 @@ class TimetableAdmin(admin.ModelAdmin):
     list_filter = ('grade_class', 'day_of_week', 'subject')
 
 
+@admin.register(Lesson)
+class LessonAdmin(admin.ModelAdmin):
+    list_display = ('title', 'subject', 'teacher', 'grade_class', 'date')
+    list_filter = ('subject', 'grade_class', 'date')
+    search_fields = ('title', 'teacher__first_name', 'teacher__last_name', 'description')
+
+
 @admin.register(Grade)
 class GradeAdmin(admin.ModelAdmin):
-    list_display = ('student', 'subject', 'score', 'grade_type', 'date')
-    list_filter = ('grade_type', 'subject', 'date')
+    list_display = ('student', 'teacher', 'subject', 'lesson', 'score', 'grade_type', 'date')
+    list_filter = ('grade_type', 'subject', 'teacher', 'date')
 
 
 @admin.register(Attendance)

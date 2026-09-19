@@ -4,10 +4,14 @@ from .views import (
     UserLoginView, UserRegisterView, UserLogoutView,
     # Dashboard
     HomeView,
+    # Teachers
+    TeacherListView, TeacherCreateView, TeacherUpdateView, TeacherDeleteView,
     # Students
     StudentListView, StudentProfileView, StudentCreateView, StudentUpdateView, StudentDeleteView,
-    # Parents
-    ParentDashboardView,
+    # Subjects
+    SubjectListView,
+    # Lessons
+    LessonListView, LessonCreateView, LessonUpdateView, LessonDeleteView,
     # Grades
     GradeBookView,
     # Attendance
@@ -23,7 +27,7 @@ from .views import (
     # Announcements & Notifications
     AnnouncementListView, NotificationListView, MarkNotificationReadView,
     # Quizzes
-    QuizListView, QuizTakeView, LeaderboardView,
+    QuizListView, QuizTakeView,
     # Export
     ExportDataView,
 )
@@ -35,6 +39,12 @@ urlpatterns = [
     path('register/', UserRegisterView.as_view(), name='register'),
     path('logout/', UserLogoutView.as_view(), name='logout'),
 
+    # ── O'qituvchilar ─────────────────────────────────────────
+    path('teachers/', TeacherListView.as_view(), name='teacher_list'),
+    path('teachers/add/', TeacherCreateView.as_view(), name='teacher_create'),
+    path('teachers/<int:pk>/edit/', TeacherUpdateView.as_view(), name='teacher_update'),
+    path('teachers/<int:pk>/delete/', TeacherDeleteView.as_view(), name='teacher_delete'),
+
     # ── O'quvchilar ───────────────────────────────────────────
     path('students/', StudentListView.as_view(), name='student_list'),
     path('students/add/', StudentCreateView.as_view(), name='student_create'),
@@ -42,8 +52,14 @@ urlpatterns = [
     path('students/<int:pk>/edit/', StudentUpdateView.as_view(), name='student_update'),
     path('students/<int:pk>/delete/', StudentDeleteView.as_view(), name='student_delete'),
 
-    # ── Ota-ona Dashboard ─────────────────────────────────────
-    path('parent/', ParentDashboardView.as_view(), name='parent_dashboard'),
+    # ── Fanlar ────────────────────────────────────────────────
+    path('subjects/', SubjectListView.as_view(), name='subject_list'),
+
+    # ── Darslar ───────────────────────────────────────────────
+    path('lessons/', LessonListView.as_view(), name='lesson_list'),
+    path('lessons/add/', LessonCreateView.as_view(), name='lesson_create'),
+    path('lessons/<int:pk>/edit/', LessonUpdateView.as_view(), name='lesson_update'),
+    path('lessons/<int:pk>/delete/', LessonDeleteView.as_view(), name='lesson_delete'),
 
     # ── Baholar Jurnali ───────────────────────────────────────
     path('grades/', GradeBookView.as_view(), name='gradebook'),
@@ -76,7 +92,6 @@ urlpatterns = [
     # ── Bilim.uz Test Platformasi ─────────────────────────────
     path('quizzes/', QuizListView.as_view(), name='quiz_list'),
     path('quizzes/<int:pk>/take/', QuizTakeView.as_view(), name='quiz_take'),
-    path('leaderboard/', LeaderboardView.as_view(), name='leaderboard'),
 
     # ── Export ────────────────────────────────────────────────
     path('export/<str:model_type>/', ExportDataView.as_view(), name='export_data'),

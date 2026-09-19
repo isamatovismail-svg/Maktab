@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Darsni Tahrirlash — Smart Maktab{% endblock %}
+{% block header_title %}Darsni Tahrirlash{% endblock %}
+{% block header_subtitle %}'{{ lesson.title }}' darsini yangilash{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 550px; margin: 0 auto;">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Dars Mavzusi (Sarlavha):</label>
+            {{ form.title }}
+        </div>
+
+        <div class="form-group">
+            <label>Fan:</label>
+            {{ form.subject }}
+        </div>
+
+        {% if is_admin %}
+        <div class="form-group">
+            <label>O'qituvchi:</label>
+            {{ form.teacher }}
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label>Sinf:</label>
+            {{ form.grade_class }}
+        </div>
+
+        <div class="form-group">
+            <label>Sana:</label>
+            {{ form.date }}
+        </div>
+
+        <div class="form-group">
+            <label>Dars haqida batafsil izoh:</label>
+            {{ form.description }}
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+            <a href="{% url 'lesson_list' %}" class="btn-secondary">Bekor qilish</a>
+            <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Saqlash</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

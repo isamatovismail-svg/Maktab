@@ -1,11 +1,51 @@
 {% extends 'base.html' %}
 {% load custom_filters %}
 
-{% block title %}Baholar Jurnali — Kundalik.uz{% endblock %}
-{% block header_title %}Elektron Kundalik — Baholar Jurnali{% endblock %}
-{% block header_subtitle %}Sinf va fanlar kesimida o'quvchilar baholari{% endblock %}
+{% block title %}Baholar Jurnali — Smart Maktab{% endblock %}
+{% block header_title %}Baholar Jurnali{% endblock %}
+{% block header_subtitle %}Sinf va fanlar kesimida baholash va kuzatuv{% endblock %}
 
 {% block content %}
+{% if student_mode %}
+<!-- Student View -->
+<div class="glass-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="font-size: 18px; font-weight: 800;">Mening Barcha Baholarim</h3>
+    </div>
+    <table class="modern-table">
+        <thead>
+            <tr>
+                <th>Fan</th>
+                <th>O'qituvchi</th>
+                <th>Dars / Mavzu</th>
+                <th>Baho</th>
+                <th>Baho Turi</th>
+                <th>Sana</th>
+                <th>Izoh</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in grades %}
+            <tr>
+                <td><span style="color: {{ g.subject.color }}; font-weight: 700;">{{ g.subject.icon }} {{ g.subject.name }}</span></td>
+                <td>{{ g.teacher.first_name }} {{ g.teacher.last_name }}</td>
+                <td>{{ g.lesson.title|default:"—" }}</td>
+                <td><span class="badge badge-success" style="font-size: 14px;">{{ g.score }}</span></td>
+                <td><span class="badge badge-primary">{{ g.get_grade_type_display }}</span></td>
+                <td style="color: var(--text-muted);">{{ g.date|date:"d.m.Y" }}</td>
+                <td>{{ g.comment|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">Sizda hali baholar yo'q.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<!-- Admin & Teacher View -->
 <div class="glass-card" style="margin-bottom: 24px;">
     <form method="GET" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 200px;">
@@ -38,9 +78,11 @@
 <div class="glass-card" style="margin-bottom: 24px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h3 style="font-size: 18px; font-weight: 800;">O'quvchilar Baholari Ro'yxati</h3>
+        {% if is_admin or is_teacher %}
         <button class="btn-primary" onclick="document.getElementById('gradeModal').style.display='flex'">
             <i class="fa-solid fa-plus"></i> Yangi Baho Qo'yish
         </button>
+        {% endif %}
     </div>
 
     <table class="modern-table">
@@ -61,7 +103,7 @@
                 <td>
                     <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                         {% for g in grades_matrix|dict_get:st.id %}
-                            <span class="badge {% if g.score >= 5 %}badge-success{% elif g.score == 4 %}badge-primary{% else %}badge-warning{% endif %}" title="{{ g.subject.name }} ({{ g.date|date:'d.m' }}) — {{ g.comment }}">
+                            <span class="badge {% if g.score >= 5 %}badge-success{% elif g.score == 4 %}badge-primary{% else %}badge-warning{% endif %}" title="{{ g.subject.name }} (O'qituvchi: {{ g.teacher.first_name }}) — {{ g.comment }}">
                                 {{ g.score }}
                             </span>
                         {% empty %}
@@ -81,6 +123,7 @@
     </table>
 </div>
 
+{% if is_admin or is_teacher %}
 <!-- Modal for Adding Grade -->
 <div id="gradeModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="glass-card" style="width: 450px; max-width: 90%; background: #1e293b; border: 1px solid rgba(255,255,255,0.2);">
@@ -94,9 +137,19 @@
                 <label>O'quvchini Tanlang:</label>
                 {{ grade_form.student }}
             </div>
+            {% if is_admin %}
+            <div class="form-group">
+                <label>O'qituvchi:</label>
+                {{ grade_form.teacher }}
+            </div>
+            {% endif %}
             <div class="form-group">
                 <label>Fanni Tanlang:</label>
                 {{ grade_form.subject }}
+            </div>
+            <div class="form-group">
+                <label>Dars (Mavzu, ixtiyoriy):</label>
+                {{ grade_form.lesson }}
             </div>
             <div class="form-group">
                 <label>Baho (1-5):</label>
@@ -121,11 +174,14 @@
         </form>
     </div>
 </div>
+{% endif %}
+
 {% else %}
 <div class="glass-card" style="text-align: center; padding: 48px;">
     <i class="fa-solid fa-graduation-cap" style="font-size: 48px; color: var(--primary); margin-bottom: 16px;"></i>
     <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 8px;">Sinfni Tanlang</h3>
     <p style="color: var(--text-muted); font-size: 14px;">Baholarni ko'rish va kiritish uchun yuqoridagi menyudan sinfni tanlang.</p>
 </div>
+{% endif %}
 {% endif %}
 {% endblock %}
