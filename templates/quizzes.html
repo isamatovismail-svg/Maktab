@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Bilim Test Platformasi — Bilim.uz{% endblock %}
+{% block header_title %}Bilim.uz Onlayn Testlar{% endblock %}
+{% block header_subtitle %}Fanlar va sinflar bo'yicha bilimni baholash testlari{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+    {% for q in quizzes %}
+    <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <span class="badge badge-primary">{{ q.grade_level }}-sinf</span>
+                <span class="badge badge-warning"><i class="fa-solid fa-clock"></i> {{ q.time_limit_minutes }} daqiqa</span>
+            </div>
+            <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px; color: var(--text-main);">
+                {{ q.subject.icon }} {{ q.title }}
+            </h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                Fan: <strong style="color: {{ q.subject.color }};">{{ q.subject.name }}</strong>
+            </p>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-card); padding-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">
+                <i class="fa-solid fa-circle-question"></i> {{ q.num_questions }} ta savol
+            </span>
+            <a href="{% url 'quiz_take' q.id %}" class="btn-primary" style="padding: 8px 16px; font-size: 13px;">
+                Testni Boshlash <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="glass-card" style="text-align: center; padding: 48px; grid-column: 1 / -1;">
+        <i class="fa-solid fa-brain" style="font-size: 48px; color: var(--text-muted); margin-bottom: 16px;"></i>
+        <h3 style="font-size: 18px; font-weight: 700;">Hozircha testlar kiritilmagan</h3>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

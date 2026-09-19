@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Yo'qlama — Smart Maktab{% endblock %}
+{% block header_title %}Yo'qlama / Davomat Tizimi{% endblock %}
+{% block header_subtitle %}Kunlik dars bo'yicha o'quvchilar ishtirokini belgilash{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 180px;">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">SINF:</label>
+            <select name="class_id" class="form-select">
+                <option value="">-- Sinfni tanlang --</option>
+                {% for c in classes %}
+                <option value="{{ c.id }}" {% if selected_class_id == c.id|stringformat:"i" %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 180px;">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">FAN:</label>
+            <select name="subject_id" class="form-select">
+                <option value="">-- Fanni tanlang --</option>
+                {% for s in subjects %}
+                <option value="{{ s.id }}" {% if selected_subject_id == s.id|stringformat:"i" %}selected{% endif %}>{{ s.icon }} {{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 180px;">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">SANA:</label>
+            <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+        </div>
+
+        <div>
+            <button type="submit" class="btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Yo'qlamani Ochish</button>
+        </div>
+    </form>
+</div>
+
+{% if selected_class_id and selected_subject_id %}
+<div class="glass-card">
+    <form method="POST" action="{% url 'attendance' %}">
+        {% csrf_token %}
+        <input type="hidden" name="class_id" value="{{ selected_class_id }}">
+        <input type="hidden" name="subject_id" value="{{ selected_subject_id }}">
+        <input type="hidden" name="date" value="{{ selected_date }}">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="font-size: 18px; font-weight: 800;">O'quvchilar Davomat Holati</h3>
+            <button type="submit" class="btn-primary">
+                <i class="fa-solid fa-floppy-disk"></i> Davomatni Saqlash & Telegramga Yuborish
+            </button>
+        </div>
+
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>O'quvchi Ismi Familiyasi</th>
+                    <th>Holat (Yo'qlama)</th>
+                    <th>Telegram Xabarnoma</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for st in students %}
+                {% with status=existing_status|dict_get:st.id %}
+                <tr>
+                    <td style="font-weight: 800; color: var(--accent-cyan);">{{ forloop.counter }}</td>
+                    <td style="font-weight: 700;">{{ st.first_name }} {{ st.last_name }}</td>
+                    <td>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #34d399; font-weight: 600;">
+                                <input type="radio" name="status_{{ st.id }}" value="B" {% if not status or status == 'B' %}checked{% endif %}>
+                                Bor
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #fbbf24; font-weight: 600;">
+                                <input type="radio" name="status_{{ st.id }}" value="K" {% if status == 'K' %}checked{% endif %}>
+                                Kech qoldi
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #f87171; font-weight: 600;">
+                                <input type="radio" name="status_{{ st.id }}" value="Y" {% if status == 'Y' %}checked{% endif %}>
+                                Yo'q (Sababsiz)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #818cf8; font-weight: 600;">
+                                <input type="radio" name="status_{{ st.id }}" value="S" {% if status == 'S' %}checked{% endif %}>
+                                Sababli
+                            </label>
+                        </div>
+                    </td>
+                    <td>
+                        {% if st.telegram_id %}
+                            <span class="badge badge-success"><i class="fa-brands fa-telegram"></i> Ulangan ({{ st.telegram_id }})</span>
+                        {% else %}
+                            <span class="badge badge-warning">Ulanmagan</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                        Ushbu sinfda o'quvchilar topilmadi.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+</div>
+{% else %}
+<div class="glass-card" style="text-align: center; padding: 48px;">
+    <i class="fa-solid fa-clipboard-user" style="font-size: 48px; color: var(--accent-cyan); margin-bottom: 16px;"></i>
+    <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 8px;">Yo'qlama Parametrlarini Tanlang</h3>
+    <p style="color: var(--text-muted); font-size: 14px;">Davomat qilish uchun sinf, fan va sanani tanlang.</p>
+</div>
+{% endif %}
+{% endblock %}

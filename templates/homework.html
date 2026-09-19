@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Uyga Vazifalar — Smart Maktab{% endblock %}
+{% block header_title %}Uyga Vazifalar Hubi{% endblock %}
+{% block header_subtitle %}Berilgan vazifalar va topshirish muddatlari{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+    <!-- Homework List -->
+    <div>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            {% for h in homeworks %}
+            <div class="glass-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div>
+                        <span class="badge badge-primary" style="margin-bottom: 6px;">{{ h.grade_class.name }} sinfi</span>
+                        <h3 style="font-size: 18px; font-weight: 800; color: var(--text-main);">
+                            {{ h.subject.icon }} {{ h.subject.name }}: {{ h.title }}
+                        </h3>
+                    </div>
+                    <div class="badge badge-warning" style="font-size: 13px;">
+                        <i class="fa-solid fa-clock"></i> Muddati: {{ h.due_date|date:"d.m.Y" }}
+                    </div>
+                </div>
+                <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+                    {{ h.description }}
+                </p>
+                <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 16px; border-top: 1px solid var(--border-card); padding-top: 12px;">
+                    <span><i class="fa-solid fa-calendar-check"></i> Berilgan sana: {{ h.created_at|date:"d.m.Y, H:i" }}</span>
+                </div>
+            </div>
+            {% empty %}
+            <div class="glass-card" style="text-align: center; padding: 48px;">
+                <i class="fa-solid fa-list-check" style="font-size: 48px; color: var(--text-muted); margin-bottom: 16px;"></i>
+                <h3 style="font-size: 18px; font-weight: 700;">Uyga vazifalar mavjud emas</h3>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Create Homework Form -->
+    <div>
+        <div class="glass-card">
+            <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 16px;">Yangi Vazifa Berish</h3>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Sinf:</label>
+                    {{ form.grade_class }}
+                </div>
+                <div class="form-group">
+                    <label>Fan:</label>
+                    {{ form.subject }}
+                </div>
+                <div class="form-group">
+                    <label>Sarlavha:</label>
+                    {{ form.title }}
+                </div>
+                <div class="form-group">
+                    <label>Topshiriq Matni:</label>
+                    {{ form.description }}
+                </div>
+                <div class="form-group">
+                    <label>Topshirish Muddati:</label>
+                    {{ form.due_date }}
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 8px;">
+                    <i class="fa-solid fa-paper-plane"></i> Vazifani E'lon Qilish
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

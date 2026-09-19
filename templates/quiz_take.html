@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ quiz.title }} — Bilim Test{% endblock %}
+{% block header_title %}{{ quiz.title }}{% endblock %}
+{% block header_subtitle %}Vaqt chegarasi: {{ quiz.time_limit_minutes }} daqiqa{% endblock %}
+
+{% block content %}
+<form method="POST">
+    {% csrf_token %}
+    <div class="glass-card" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="flex: 1; max-width: 300px;">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">O'QUVCHINI TANLANG:</label>
+            <select name="student_id" class="form-select" required>
+                {% for s in students %}
+                <option value="{{ s.id }}">{{ s.first_name }} {{ s.last_name }} ({{ s.grade_class.name }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="badge badge-warning" style="font-size: 16px; padding: 10px 18px;">
+            <i class="fa-solid fa-hourglass-half"></i> Vaqt ketmoqda...
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        {% for q in questions %}
+        <div class="glass-card">
+            <div style="font-size: 16px; font-weight: 800; margin-bottom: 16px; color: var(--text-main); display: flex; gap: 10px;">
+                <span style="color: var(--accent-cyan);">{{ forloop.counter }}.</span>
+                <span>{{ q.text }}</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <label style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); padding: 12px 16px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px;">
+                    <input type="radio" name="q_{{ q.id }}" value="A">
+                    <span><strong>A)</strong> {{ q.option_a }}</span>
+                </label>
+
+                <label style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); padding: 12px 16px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px;">
+                    <input type="radio" name="q_{{ q.id }}" value="B">
+                    <span><strong>B)</strong> {{ q.option_b }}</span>
+                </label>
+
+                <label style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); padding: 12px 16px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px;">
+                    <input type="radio" name="q_{{ q.id }}" value="C">
+                    <span><strong>C)</strong> {{ q.option_c }}</span>
+                </label>
+
+                <label style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); padding: 12px 16px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px;">
+                    <input type="radio" name="q_{{ q.id }}" value="D">
+                    <span><strong>D)</strong> {{ q.option_d }}</span>
+                </label>
+            </div>
+        </div>
+        {% empty %}
+        <div class="glass-card" style="text-align: center; padding: 48px;">
+            <h3>Ushbu testda savollar topilmadi.</h3>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if questions %}
+    <div style="margin-top: 24px; text-align: right;">
+        <button type="submit" class="btn-primary" style="padding: 14px 32px; font-size: 16px;">
+            <i class="fa-solid fa-check-double"></i> Testni Yakunlash & Natijani Ko'rish
+        </button>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}

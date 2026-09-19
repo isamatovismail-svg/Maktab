@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Baholar Jurnali — Kundalik.uz{% endblock %}
+{% block header_title %}Elektron Kundalik — Baholar Jurnali{% endblock %}
+{% block header_subtitle %}Sinf va fanlar kesimida o'quvchilar baholari{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">SINFNI TANLANG:</label>
+            <select name="class_id" class="form-select" onchange="this.form.submit()">
+                <option value="">-- Sinfni tanlang --</option>
+                {% for c in classes %}
+                <option value="{{ c.id }}" {% if selected_class_id == c.id|stringformat:"i" %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 200px;">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">FANNI TANLANG:</label>
+            <select name="subject_id" class="form-select" onchange="this.form.submit()">
+                <option value="">-- Barcha fanlar --</option>
+                {% for s in subjects %}
+                <option value="{{ s.id }}" {% if selected_subject_id == s.id|stringformat:"i" %}selected{% endif %}>{{ s.icon }} {{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <button type="submit" class="btn-primary"><i class="fa-solid fa-filter"></i> Saralash</button>
+        </div>
+    </form>
+</div>
+
+{% if selected_class_id %}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="font-size: 18px; font-weight: 800;">O'quvchilar Baholari Ro'yxati</h3>
+        <button class="btn-primary" onclick="document.getElementById('gradeModal').style.display='flex'">
+            <i class="fa-solid fa-plus"></i> Yangi Baho Qo'yish
+        </button>
+    </div>
+
+    <table class="modern-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>O'quvchi F.I.Sh.</th>
+                <th>Telefon</th>
+                <th>Baholar (So'nggi 5 ta)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for st in students %}
+            <tr>
+                <td style="font-weight: 800; color: var(--accent-cyan);">{{ forloop.counter }}</td>
+                <td style="font-weight: 700;">{{ st.first_name }} {{ st.last_name }}</td>
+                <td style="color: var(--text-muted);">{{ st.phone|default:"Yo'q" }}</td>
+                <td>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        {% for g in grades_matrix|dict_get:st.id %}
+                            <span class="badge {% if g.score >= 5 %}badge-success{% elif g.score == 4 %}badge-primary{% else %}badge-warning{% endif %}" title="{{ g.subject.name }} ({{ g.date|date:'d.m' }}) — {{ g.comment }}">
+                                {{ g.score }}
+                            </span>
+                        {% empty %}
+                            <span style="color: var(--text-muted); font-size: 12px;">Baho yo'q</span>
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                    Ushbu sinfda o'quvchilar topilmadi.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal for Adding Grade -->
+<div id="gradeModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="width: 450px; max-width: 90%; background: #1e293b; border: 1px solid rgba(255,255,255,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="font-size: 18px; font-weight: 800;">Baho Qo'yish Formasi</h3>
+            <button onclick="document.getElementById('gradeModal').style.display='none'" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">&times;</button>
+        </div>
+        <form method="POST" action="{% url 'gradebook' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>O'quvchini Tanlang:</label>
+                {{ grade_form.student }}
+            </div>
+            <div class="form-group">
+                <label>Fanni Tanlang:</label>
+                {{ grade_form.subject }}
+            </div>
+            <div class="form-group">
+                <label>Baho (1-5):</label>
+                {{ grade_form.score }}
+            </div>
+            <div class="form-group">
+                <label>Baho Turi:</label>
+                {{ grade_form.grade_type }}
+            </div>
+            <div class="form-group">
+                <label>Sana:</label>
+                {{ grade_form.date }}
+            </div>
+            <div class="form-group">
+                <label>Izoh / Sabab:</label>
+                {{ grade_form.comment }}
+            </div>
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+                <button type="submit" class="btn-primary" style="flex: 1; justify-content: center;">Saqlash</button>
+                <button type="button" class="btn-secondary" onclick="document.getElementById('gradeModal').style.display='none'">Bekor qilish</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="glass-card" style="text-align: center; padding: 48px;">
+    <i class="fa-solid fa-graduation-cap" style="font-size: 48px; color: var(--primary); margin-bottom: 16px;"></i>
+    <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 8px;">Sinfni Tanlang</h3>
+    <p style="color: var(--text-muted); font-size: 14px;">Baholarni ko'rish va kiritish uchun yuqoridagi menyudan sinfni tanlang.</p>
+</div>
+{% endif %}
+{% endblock %}

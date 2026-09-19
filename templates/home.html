@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+
+{% block title %}Bosh Sahifa — Smart Maktab{% endblock %}
+{% block header_title %}Bosh Sahifa (Dashboard){% endblock %}
+{% block header_subtitle %}Maktab statistikasi va tezkor amallar{% endblock %}
+
+{% block content %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .stat-card {
+        background: var(--bg-card);
+        backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--border-card);
+        border-radius: 18px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .stat-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+    }
+
+    .stat-val {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+
+    .stat-lbl {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+        .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .action-btn {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border-card);
+        border-radius: 14px;
+        padding: 16px;
+        text-align: center;
+        text-decoration: none;
+        color: var(--text-main);
+        transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: var(--primary);
+        transform: translateY(-2px);
+    }
+
+    .action-btn i {
+        font-size: 22px;
+        color: var(--accent-cyan);
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .action-btn span {
+        font-size: 13px;
+        font-weight: 700;
+    }
+</style>
+
+<!-- Stat Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">
+            <i class="fa-solid fa-user-graduate"></i>
+        </div>
+        <div>
+            <div class="stat-val">{{ total_students }}</div>
+            <div class="stat-lbl">O'quvchilar</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #06b6d4, #0284c7);">
+            <i class="fa-solid fa-chalkboard-user"></i>
+        </div>
+        <div>
+            <div class="stat-val">{{ total_teachers }}</div>
+            <div class="stat-lbl">O'qituvchilar</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+            <i class="fa-solid fa-door-open"></i>
+        </div>
+        <div>
+            <div class="stat-val">{{ total_classes }}</div>
+            <div class="stat-lbl">Sinflar</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+            <i class="fa-solid fa-brain"></i>
+        </div>
+        <div>
+            <div class="stat-val">{{ total_quizzes }}</div>
+            <div class="stat-lbl">Bilim Testlari</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Dashboard Grid -->
+<div class="dashboard-grid">
+    <!-- Left Column -->
+    <div>
+        <!-- Quick Actions -->
+        <div class="glass-card" style="margin-bottom: 24px;">
+            <div class="section-title">
+                <i class="fa-solid fa-bolt" style="color: var(--accent-amber);"></i> Tezkor Bo'limlar
+            </div>
+            <div class="quick-actions">
+                <a href="{% url 'gradebook' %}" class="action-btn">
+                    <i class="fa-solid fa-book-open"></i>
+                    <span>Baholar Jurnali</span>
+                </a>
+                <a href="{% url 'attendance' %}" class="action-btn">
+                    <i class="fa-solid fa-clipboard-user"></i>
+                    <span>Yo'qlama</span>
+                </a>
+                <a href="{% url 'timetable' %}" class="action-btn">
+                    <i class="fa-solid fa-calendar-days"></i>
+                    <span>Dars Jadvali</span>
+                </a>
+                <a href="{% url 'quiz_list' %}" class="action-btn">
+                    <i class="fa-solid fa-brain"></i>
+                    <span>Bilim Testlar</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Grades Table -->
+        <div class="glass-card">
+            <div class="section-title" style="justify-content: space-between;">
+                <span><i class="fa-solid fa-star" style="color: var(--accent-amber);"></i> So'nggi Qo'yilgan Baholar</span>
+                <a href="{% url 'gradebook' %}" class="btn-secondary" style="padding: 6px 12px; font-size: 12px;">Barchasi</a>
+            </div>
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>O'quvchi</th>
+                        <th>Fan</th>
+                        <th>Baho</th>
+                        <th>Turi</th>
+                        <th>Sana</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for g in recent_grades %}
+                    <tr>
+                        <td style="font-weight: 700;">{{ g.student.first_name }} {{ g.student.last_name }}</td>
+                        <td>
+                            <span style="color: {{ g.subject.color }}; font-weight: 600;">
+                                {{ g.subject.icon }} {{ g.subject.name }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if g.score >= 5 %}
+                                <span class="badge badge-success" style="font-size: 14px;">{{ g.score }}</span>
+                            {% elif g.score == 4 %}
+                                <span class="badge badge-primary" style="font-size: 14px;">{{ g.score }}</span>
+                            {% else %}
+                                <span class="badge badge-warning" style="font-size: 14px;">{{ g.score }}</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge badge-primary">{{ g.get_grade_type_display }}</span></td>
+                        <td style="color: var(--text-muted);">{{ g.date|date:"d.m.Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted);">Hali baholar kiritilmagan.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+        <!-- Today's Schedule -->
+        <div class="glass-card" style="margin-bottom: 24px;">
+            <div class="section-title">
+                <i class="fa-solid fa-clock" style="color: var(--accent-cyan);"></i> Bugungi Dars Jadvali
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                {% for t in today_timetables %}
+                <div style="background: rgba(255,255,255,0.03); padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border-card); display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <div style="font-weight: 700; font-size: 14px;">{{ t.subject.icon }} {{ t.subject.name }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">{{ t.grade_class.name }} • {{ t.room|default:"Xonasiz" }}</div>
+                    </div>
+                    <div style="font-size: 12px; font-weight: 700; color: var(--accent-cyan); background: rgba(6,182,212,0.1); padding: 4px 8px; border-radius: 8px;">
+                        {{ t.time_slot }}
+                    </div>
+                </div>
+                {% empty %}
+                <div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px;">
+                    Bugun darslar mavjud emas yoki yakshanba.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Top Students (Leaderboard Preview) -->
+        <div class="glass-card">
+            <div class="section-title" style="justify-content: space-between;">
+                <span><i class="fa-solid fa-trophy" style="color: var(--accent-amber);"></i> Bilim.uz Yetakchilari</span>
+                <a href="{% url 'leaderboard' %}" class="btn-secondary" style="padding: 6px 12px; font-size: 12px;">Reyting</a>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                {% for s in top_students %}
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-weight: 800; color: var(--accent-amber); width: 20px;">#{{ forloop.counter }}</span>
+                        <div>
+                            <div style="font-size: 13px; font-weight: 700;">{{ s.first_name }} {{ s.last_name }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">{{ s.grade_class.name }}</div>
+                        </div>
+                    </div>
+                    <div class="badge badge-success">
+                        {{ s.avg_score|floatformat:1 }}%
+                    </div>
+                </div>
+                {% empty %}
+                <div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px;">
+                    Test natijalari yo'q.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Test Natijasi — Bilim.uz{% endblock %}
+{% block header_title %}Test Natijasi{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 600px; margin: 40px auto; text-align: center; padding: 40px;">
+    {% if result.percentage >= 80 %}
+        <div style="font-size: 64px; color: #34d399; margin-bottom: 16px;"><i class="fa-solid fa-trophy"></i></div>
+        <h2 style="font-size: 28px; font-weight: 800; color: #34d399;">A'lo Natija! 🎉</h2>
+    {% elif result.percentage >= 50 %}
+        <div style="font-size: 64px; color: #fbbf24; margin-bottom: 16px;"><i class="fa-solid fa-medal"></i></div>
+        <h2 style="font-size: 28px; font-weight: 800; color: #fbbf24;">Yaxshi Natija! 👍</h2>
+    {% else %}
+        <div style="font-size: 64px; color: #f87171; margin-bottom: 16px;"><i class="fa-solid fa-face-frown"></i></div>
+        <h2 style="font-size: 28px; font-weight: 800; color: #f87171;">Yana harakat qiling!</h2>
+    {% endif %}
+
+    <p style="color: var(--text-muted); font-size: 16px; margin-top: 8px;">
+        O'quvchi: <strong style="color: white;">{{ result.student.first_name }} {{ result.student.last_name }}</strong>
+    </p>
+    <p style="color: var(--text-muted); font-size: 15px;">
+        Test: <strong style="color: white;">{{ quiz.title }}</strong>
+    </p>
+
+    <div style="display: flex; justify-content: center; gap: 32px; margin: 32px 0;">
+        <div>
+            <div style="font-size: 32px; font-weight: 800; color: var(--accent-cyan);">{{ result.score }} / {{ result.total_questions }}</div>
+            <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">To'g'ri javoblar</div>
+        </div>
+        <div>
+            <div style="font-size: 32px; font-weight: 800; color: var(--accent-emerald);">{{ result.percentage }}%</div>
+            <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Samaradorlik</div>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 16px; justify-content: center;">
+        <a href="{% url 'quiz_list' %}" class="btn-primary">
+            <i class="fa-solid fa-rotate-right"></i> Boshqa Test Topshirish
+        </a>
+        <a href="{% url 'leaderboard' %}" class="btn-secondary">
+            <i class="fa-solid fa-trophy"></i> Reytingni Ko'rish
+        </a>
+    </div>
+</div>
+{% endblock %}
