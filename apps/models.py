@@ -2,6 +2,7 @@ import random
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from .permissions import Role
 
@@ -242,7 +243,10 @@ class Grade(models.Model):
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='grades', verbose_name="O'qituvchi", db_index=True, null=True, blank=True)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='grades', verbose_name="Fan", db_index=True)
     lesson = models.ForeignKey(Lesson, on_delete=models.SET_NULL, null=True, blank=True, related_name='grades', verbose_name="Dars")
-    score = models.IntegerField(verbose_name="Baho (1-5 yoki 1-100)")
+    score = models.IntegerField(
+        verbose_name="Baho (1-100)",
+        validators=[MinValueValidator(1), MaxValueValidator(100)]
+    )
     grade_type = models.CharField(max_length=20, choices=GRADE_TYPES, default='KUNDALIK', verbose_name="Baho turi")
     date = models.DateField(verbose_name="Sana", db_index=True)
     comment = models.CharField(max_length=255, blank=True, verbose_name="Izoh")
@@ -261,6 +265,10 @@ class Grade(models.Model):
         super().clean()
         if not self.student_id:
             raise ValidationError("O'quvchi ko'rsatilishi shart.")
+
+        # Score range validation
+        if self.score is not None and not (1 <= self.score <= 100):
+            raise ValidationError("Baho 1 dan 100 gacha bo'lishi kerak!")
 
         if self.teacher_id:
             if self.lesson:
