@@ -504,27 +504,6 @@ class Announcement(models.Model):
         return f"{self.title} ({self.get_target_role_display()})"
 
 
-class Notification(models.Model):
-    TYPE_CHOICES = [
-        ('HOMEWORK', 'Uyga vazifa'), ('EXAM', 'Imtihon'), ('FEE', "To'lov eslatmasi"),
-        ('ATTENDANCE', 'Davomat'), ('ANNOUNCEMENT', "E'lon"),
-    ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', verbose_name="Foydalanuvchi")
-    title = models.CharField(max_length=200, verbose_name="Sarlavha")
-    message = models.TextField(verbose_name="Xabar")
-    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='ANNOUNCEMENT', verbose_name="Turi")
-    link = models.CharField(max_length=255, blank=True, verbose_name="Havola")
-    is_read = models.BooleanField(default=False, verbose_name="O'qilgan")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Xabarnoma"
-        verbose_name_plural = "Xabarnomalar"
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"{self.user.username} — {self.title} ({'O\'qilgan' if self.is_read else 'Yangi'})"
-
 
 class Quiz(models.Model):
     title = models.CharField(max_length=200, verbose_name="Test nomi")

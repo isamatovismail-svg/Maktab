@@ -1,6 +1,6 @@
 Django>=5.0
 Pillow>=10.0.0
+python-telegram-bot>=20.0
 django-extensions
 werkzeug
 pyOpenSSL
-

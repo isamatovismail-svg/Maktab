@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if is_admin %}To'lovlar Boshqaruvi{% else %}Mening To'lovlarim{% endif %}
+{% endblock %}
+
+{% block header_title %}
+    {% if is_admin %}To'lovlar Boshqaruvi{% else %}Mening To'lovlarim{% endif %}
+{% endblock %}
+
+{% block header_subtitle %}
+    {% if is_admin %}O'quvchilar to'lovlarini nazorat qilish{% else %}Mening joriy va o'tgan to'lovlarim tarixi{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    {% if is_admin %}
+    <!-- Admin Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card glass-card p-4 d-flex align-items-center">
+                <div class="stat-icon bg-primary text-white p-3 rounded-circle me-3">
+                    <i class="fas fa-file-invoice-dollar fa-2x"></i>
+                </div>
+                <div>
+                    <div class="stat-lbl text-muted">Jami To'lovlar</div>
+                    <div class="stat-val text-main fs-4 fw-bold">{{ total_fees_sum|default:"0" }} UZS</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card glass-card p-4 d-flex align-items-center">
+                <div class="stat-icon bg-success text-white p-3 rounded-circle me-3">
+                    <i class="fas fa-check-circle fa-2x"></i>
+                </div>
+                <div>
+                    <div class="stat-lbl text-muted">To'langan</div>
+                    <div class="stat-val text-main fs-4 fw-bold">{{ total_paid_sum|default:"0" }} UZS</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card glass-card p-4 d-flex align-items-center">
+                <div class="stat-icon bg-danger text-white p-3 rounded-circle me-3">
+                    <i class="fas fa-exclamation-circle fa-2x"></i>
+                </div>
+                <div>
+                    <div class="stat-lbl text-muted">Muddati o'tgan</div>
+                    <div class="stat-val text-main fs-4 fw-bold">{{ overdue_count|default:"0" }} ta</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Actions & Filters -->
+    <div class="glass-card p-4 mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="btn-group">
+            <a href="?status=" class="btn btn-secondary {% if not request.GET.status %}active{% endif %}">Barchasi</a>
+            <a href="?status=PENDING" class="btn btn-secondary {% if request.GET.status == 'PENDING' %}active{% endif %}">Kutilmoqda</a>
+            <a href="?status=PARTIAL" class="btn btn-secondary {% if request.GET.status == 'PARTIAL' %}active{% endif %}">Qisman</a>
+            <a href="?status=PAID" class="btn btn-secondary {% if request.GET.status == 'PAID' %}active{% endif %}">To'langan</a>
+            <a href="?status=OVERDUE" class="btn btn-secondary {% if request.GET.status == 'OVERDUE' %}active{% endif %}">Muddati o'tgan</a>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newFeeForm">
+                <i class="fas fa-plus me-2"></i> Yangi to'lov biriktirish
+            </button>
+            <a href="/export/fees/" class="btn btn-secondary">
+                <i class="fas fa-file-csv me-2"></i> CSV Yuklab olish
+            </a>
+        </div>
+    </div>
+
+    <!-- Inline Add Fee Form -->
+    <div class="collapse mb-4" id="newFeeForm">
+        <div class="glass-card p-4 border-start border-4 border-primary">
+            <h4 class="text-main mb-3">O'quvchiga yangi to'lov biriktirish</h4>
+            <form method="post" action="">
+                {% csrf_token %}
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3 form-group">
+                        <label class="form-label text-main">O'quvchi</label>
+                        {{ fee_form.student }}
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label class="form-label text-main">To'lov turi</label>
+                        {{ fee_form.fee_type }}
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <label class="form-label text-main">Chegirma (UZS)</label>
+                        {{ fee_form.discount_amount }}
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <label class="form-label text-main">Muddat</label>
+                        {{ fee_form.due_date }}
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" name="create_fee" class="btn btn-primary w-100">Saqlash</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Table -->
+    <div class="glass-card p-4">
+        <div class="table-responsive">
+            <table class="modern-table w-100">
+                <thead>
+                    <tr>
+                        <th>O'quvchi</th>
+                        <th>To'lov Turi</th>
+                        <th>Asosiy summa</th>
+                        <th>Chegirma</th>
+                        <th>To'lanishi kerak</th>
+                        <th>Muddat</th>
+                        <th>Holati</th>
+                        <th class="text-end">Harakatlar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fee in fees %}
+                    <tr>
+                        <td class="text-main fw-bold">{{ fee.student.first_name }} {{ fee.student.last_name }}</td>
+                        <td class="text-muted">{{ fee.fee_type.name }}</td>
+                        <td>{{ fee.fee_type.amount }} UZS</td>
+                        <td class="text-accent-emerald">-{{ fee.discount_amount }} UZS</td>
+                        <td class="text-main fw-bold">{{ fee.net_amount }} UZS</td>
+                        <td class="text-muted">{{ fee.due_date|date:"d.m.Y" }}</td>
+                        <td>
+                            {% if fee.status == 'PAID' %}
+                                <span class="badge badge-success">To'langan</span>
+                            {% elif fee.status == 'PARTIAL' %}
+                                <span class="badge badge-warning">Qisman</span>
+                            {% elif fee.status == 'OVERDUE' %}
+                                <span class="badge badge-danger">O'tib ketgan</span>
+                            {% else %}
+                                <span class="badge badge-primary">Kutilmoqda</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if fee.status != 'PAID' %}
+                            <form method="post" action="/fees/{{ fee.id }}/pay/" class="d-inline-block">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-hand-holding-dollar me-1"></i> To'lov qabul qilish
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <i class="fas fa-folder-open text-muted fs-1 mb-3"></i>
+                            <p class="text-muted mb-0">Hech qanday to'lovlar topilmadi.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if is_student %}
+    <!-- Student View -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="stat-card glass-card p-4 border-start border-4 border-danger">
+                <div class="text-muted mb-1">Jami Qarzim</div>
+                <div class="fs-2 fw-bold text-main">{{ student_total_debt|default:"0" }} UZS</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card glass-card p-4 border-start border-4 border-success">
+                <div class="text-muted mb-1">Jami To'laganlarim</div>
+                <div class="fs-2 fw-bold text-main">{{ student_total_paid|default:"0" }} UZS</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card p-4">
+        <h4 class="text-main mb-4">Mening to'lovlarim tarixi</h4>
+        <div class="table-responsive">
+            <table class="modern-table w-100">
+                <thead>
+                    <tr>
+                        <th>To'lov Turi</th>
+                        <th>Jami summa</th>
+                        <th>Chegirma</th>
+                        <th>Qolgan qarz</th>
+                        <th>Muddat</th>
+                        <th>Holati</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fee in fees %}
+                    <tr>
+                        <td class="text-main fw-bold">{{ fee.fee_type.name }}</td>
+                        <td>{{ fee.fee_type.amount }} UZS</td>
+                        <td class="text-accent-emerald">-{{ fee.discount_amount }} UZS</td>
+                        <td class="text-accent-rose fw-bold">{{ fee.balance_due }} UZS</td>
+                        <td class="text-muted">{{ fee.due_date|date:"d.m.Y" }}</td>
+                        <td>
+                            {% if fee.status == 'PAID' %}
+                                <span class="badge badge-success">To'langan</span>
+                            {% elif fee.status == 'PARTIAL' %}
+                                <span class="badge badge-warning">Qisman</span>
+                            {% elif fee.status == 'OVERDUE' %}
+                                <span class="badge badge-danger">O'tib ketgan</span>
+                            {% else %}
+                                <span class="badge badge-primary">Kutilmoqda</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <i class="fas fa-smile text-muted fs-1 mb-3"></i>
+                            <p class="text-muted mb-0">Sizda hozircha hech qanday to'lovlar mavjud emas.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<style>
+    .modern-table {
+        border-collapse: collapse;
+    }
+    .modern-table th {
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-card);
+        padding: 1rem;
+        font-weight: 500;
+        text-align: left;
+    }
+    .modern-table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-card);
+        color: var(--text-main);
+        vertical-align: middle;
+    }
+    .modern-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    .modern-table tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    .form-group input, .form-group select, .form-group textarea {
+        width: 100%;
+        padding: 0.5rem 1rem;
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-card);
+        color: var(--text-main);
+        border-radius: 0.5rem;
+    }
+    .badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 2rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    .badge-success { background-color: rgba(16, 185, 129, 0.2); color: var(--accent-emerald); }
+    .badge-warning { background-color: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
+    .badge-danger { background-color: rgba(244, 63, 94, 0.2); color: var(--accent-rose); }
+    .badge-primary { background-color: rgba(99, 102, 241, 0.2); color: var(--primary); }
+</style>
+{% endblock %}

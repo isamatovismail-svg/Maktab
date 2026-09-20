@@ -4,6 +4,8 @@ from .views import (
     UserLoginView, UserRegisterView, UserLogoutView,
     # Dashboard
     HomeView,
+    # Cabinet (O'quvchi shaxsiy kabineti)
+    CabinetView,
     # Teachers
     TeacherListView, TeacherCreateView, TeacherUpdateView, TeacherDeleteView,
     # Students
@@ -24,8 +26,8 @@ from .views import (
     HomeworkListView, HomeworkSubmitView,
     # Exams
     ExamListView, ExamResultEntryView,
-    # Announcements & Notifications
-    AnnouncementListView, NotificationListView, MarkNotificationReadView,
+    # Announcements
+    AnnouncementListView,
     # Quizzes
     QuizListView, QuizTakeView,
     # Export
@@ -39,6 +41,8 @@ urlpatterns = [
     path('register/', UserRegisterView.as_view(), name='register'),
     path('logout/', UserLogoutView.as_view(), name='logout'),
 
+    # ── O'quvchi Shaxsiy Kabineti ─────────────────────────────
+    path('cabinet/', CabinetView.as_view(), name='cabinet'),
     # ── O'qituvchilar ─────────────────────────────────────────
     path('teachers/', TeacherListView.as_view(), name='teacher_list'),
     path('teachers/add/', TeacherCreateView.as_view(), name='teacher_create'),
@@ -84,10 +88,8 @@ urlpatterns = [
     path('exams/', ExamListView.as_view(), name='exam_list'),
     path('exams/<int:exam_id>/results/', ExamResultEntryView.as_view(), name='exam_results'),
 
-    # ── E'lonlar va Xabarnomalar ──────────────────────────────
+    # ── E'lonlar ──────────────────────────────────────────────
     path('announcements/', AnnouncementListView.as_view(), name='announcement_list'),
-    path('notifications/', NotificationListView.as_view(), name='notification_list'),
-    path('notifications/<int:pk>/read/', MarkNotificationReadView.as_view(), name='notification_read'),
 
     # ── Bilim.uz Test Platformasi ─────────────────────────────
     path('quizzes/', QuizListView.as_view(), name='quiz_list'),

@@ -94,6 +94,10 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
 
+# ── Telegram Bot ────────────────────────────────────────────────
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+SITE_URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8080')
+
 # Security Headers & Cookie Settings
 X_FRAME_OPTIONS = 'DENY'
 SECURE_BROWSER_XSS_FILTER = True

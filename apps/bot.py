@@ -1,12 +1,13 @@
 import logging
 import datetime
 from asgiref.sync import sync_to_async
+from django.conf import settings
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 )
 
-from apps.models import Student, Grade, Timetable, Attendance, Homework, Quiz, Question, QuizResult
+from apps.models import Student, Grade, Timetable, Attendance, Homework, Quiz, Question, QuizResult, StudentFee
 
 logging.basicConfig(level=logging.INFO)
 
@@ -181,7 +182,8 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         res += f"• {icon} **{q.title}** ({sub_name})\n"
         res += f"  ⏱ Vaqt: {q.time_limit_minutes} daqiqa\n\n"
 
-    res += "💡 Testlarni onlayn yechish uchun saytga kiring:\nhttp://127.0.0.1:8080/quizzes/"
+    site_url = getattr(settings, 'SITE_URL', 'http://127.0.0.1:8080')
+    res += f"💡 Testlarni onlayn yechish uchun saytga kiring:\n{site_url}/quizzes/"
 
     await update.message.reply_text(res, parse_mode='Markdown')
 
@@ -207,6 +209,101 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ O'quvchi topilmadi. Iltimos, ismingizni yoki bazaga kiritilgan telefon raqamingizni to'g'ri yozing.")
 
 
+@sync_to_async
+def get_student_fees(student):
+    fees = list(StudentFee.objects.filter(student=student).select_related('fee_type')[:5])
+    return fees
+
+
+@sync_to_async
+def get_next_lesson(student):
+    if not student.grade_class:
+        return None
+    today = datetime.date.today()
+    today_num = today.isoweekday()
+    # Bugungi qolgan darslarni yoki keyingi kun darslarini topish
+    for day_offset in range(7):
+        check_day = (today_num + day_offset - 1) % 7 + 1
+        lessons = list(Timetable.objects.filter(
+            grade_class=student.grade_class, day_of_week=check_day
+        ).select_related('subject', 'teacher').order_by('time_slot'))
+        if lessons:
+            return lessons[0], check_day
+    return None, None
+
+
+async def tolov_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    student = await get_student_by_telegram_id(update.effective_user.id)
+    if not student:
+        await update.message.reply_text("⚠️ Avval /start orqali akkauntingizni bog'lang.")
+        return
+
+    fees = await get_student_fees(student)
+    if not fees:
+        await update.message.reply_text("✅ Sizda hozircha to'lovlar belgilanmagan.")
+        return
+
+    status_map = {'PENDING': '⏳ Kutilmoqda', 'PAID': '✅ To\'langan', 'PARTIAL': '🔶 Qisman', 'OVERDUE': '❌ Muddati o\'tgan'}
+    res = f"💳 **{student.first_name}ning To'lovlari:**\n\n"
+    total_debt = 0
+    for f in fees:
+        status = status_map.get(f.status, f.status)
+        balance = float(f.amount) - float(f.discount_amount)
+        total_debt += max(0, balance)
+        res += f"• **{f.fee_type.name}**: {balance:,.0f} UZS\n"
+        res += f"  {status} | Muddat: {f.due_date.strftime('%d.%m.%Y')}\n\n"
+
+    res += f"━━━━━━━━━━━━━\n💰 **Jami qarzdorlik: {total_debt:,.0f} UZS**"
+    await update.message.reply_text(res, parse_mode='Markdown')
+
+
+async def profil_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    student = await get_student_by_telegram_id(update.effective_user.id)
+    if not student:
+        await update.message.reply_text("⚠️ Avval /start orqali akkauntingizni bog'lang.")
+        return
+
+    gender_map = {'M': '👨 Erkak', 'F': '👩 Ayol'}
+    res = (
+        f"👤 **Profil Ma'lumotlaringiz:**\n\n"
+        f"📛 Ism-Familiya: **{student.first_name} {student.last_name}**\n"
+        f"🆔 O'quvchi ID: `{student.student_id or 'Belgilanmagan'}`\n"
+        f"🏫 Sinf: **{student.grade_class.name if student.grade_class else 'Biriktirilmagan'}**\n"
+        f"📞 Telefon: {student.phone or 'Kiritilmagan'}\n"
+        f"🧬 Jins: {gender_map.get(student.gender, student.gender)}\n"
+        f"📅 Qabul sanasi: {student.admission_date.strftime('%d.%m.%Y') if student.admission_date else '—'}\n"
+    )
+    await update.message.reply_text(res, parse_mode='Markdown')
+
+
+async def keyingidars_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    student = await get_student_by_telegram_id(update.effective_user.id)
+    if not student:
+        await update.message.reply_text("⚠️ Avval /start orqali akkauntingizni bog'lang.")
+        return
+
+    result = await get_next_lesson(student)
+    if isinstance(result, tuple):
+        lesson, day_num = result
+    else:
+        lesson, day_num = None, None
+
+    if not lesson:
+        await update.message.reply_text("📅 Keyingi dars topilmadi.")
+        return
+
+    days_uz = {1: 'Dushanba', 2: 'Seshanba', 3: 'Chorshanba', 4: 'Payshanba', 5: 'Juma', 6: 'Shanba'}
+    res = (
+        f"⏭ **Keyingi Darsiz:**\n\n"
+        f"📚 Fan: **{lesson.subject.icon} {lesson.subject.name}**\n"
+        f"📅 Kun: **{days_uz.get(day_num, '?')}**\n"
+        f"⏰ Vaqt: **{lesson.time_slot}**\n"
+        f"🚪 Xona: **{lesson.room or 'Belgilanmagan'}**\n"
+        f"👨‍🏫 O'qituvchi: **{lesson.teacher.first_name} {lesson.teacher.last_name}**"
+    )
+    await update.message.reply_text(res, parse_mode='Markdown')
+
+
 def create_bot_app(token: str):
     app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start_command))
@@ -215,6 +312,9 @@ def create_bot_app(token: str):
     app.add_handler(CommandHandler("yoqlama", yoqlama_command))
     app.add_handler(CommandHandler("vazifa", vazifa_command))
     app.add_handler(CommandHandler("test", test_command))
+    app.add_handler(CommandHandler("tolov", tolov_command))
+    app.add_handler(CommandHandler("profil", profil_command))
+    app.add_handler(CommandHandler("keyingidars", keyingidars_command))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), text_handler))
     return app
 

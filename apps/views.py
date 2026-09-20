@@ -15,7 +15,7 @@ from .models import (
     UserProfile, GradeClass, Subject, ParentProfile, Teacher, Student,
     Timetable, Lesson, Grade, Attendance, FeeType, StudentFee, PaymentRecord,
     Homework, HomeworkSubmission, Exam, ExamResult, Announcement,
-    Notification, Quiz, Question, QuizResult
+    Quiz, Question, QuizResult
 )
 from .forms import (
     StudentForm, TeacherForm, SubjectForm, GradeClassForm, LessonForm, TimetableForm,
@@ -23,10 +23,86 @@ from .forms import (
     PaymentRecordForm, ExamForm, AnnouncementForm, RegisterForm
 )
 from .permissions import Role, RoleRequiredMixin, get_user_role, role_required
-from .utils import send_system_notification, export_queryset_to_csv
+from .utils import export_queryset_to_csv
 
 logger = logging.getLogger('apps')
 
+
+# ── O'quvchi Shaxsiy Kabineti ─────────────────────────────────
+
+class CabinetView(LoginRequiredMixin, View):
+    """O'quvchi o'z shaxsiy kabinetini ko'radi. Admin/Teacher redirect qilinadi."""
+
+    def get(self, request):
+        role = get_user_role(request.user)
+        today = datetime.date.today()
+
+        # Admin va Teacher uchun — ularning dashboard'iga yo'naltirish
+        if role == Role.ADMIN:
+            return redirect('home')
+        if role == Role.TEACHER:
+            return redirect('home')
+
+        # O'quvchi uchun — shaxsiy kabinet
+        student = getattr(request.user, 'student_profile', None) or Student.objects.filter(user=request.user).first()
+        if not student:
+            messages.warning(request, "O'quvchi profili topilmadi. Iltimos, admin bilan bog'laning.")
+            return redirect('home')
+
+        grades = Grade.objects.filter(student=student).select_related('subject', 'teacher', 'lesson').order_by('-date')[:15]
+        attendances = Attendance.objects.filter(student=student).select_related('subject').order_by('-date')[:15]
+        total_att = attendances.count()
+        present_att = attendances.filter(status='B').count()
+
+        # Dars jadvali (bugungi)
+        today_timetable = []
+        if student.grade_class:
+            today_timetable = list(Timetable.objects.filter(
+                grade_class=student.grade_class, day_of_week=today.isoweekday()
+            ).select_related('subject', 'teacher').order_by('time_slot'))
+
+        # Keyingi dars
+        next_lesson = None
+        if student.grade_class:
+            for offset in range(1, 8):
+                check_day = (today.isoweekday() + offset - 1) % 7 + 1
+                qs = Timetable.objects.filter(
+                    grade_class=student.grade_class, day_of_week=check_day
+                ).select_related('subject', 'teacher').order_by('time_slot').first()
+                if qs:
+                    next_lesson = qs
+                    break
+
+        homeworks = Homework.objects.filter(
+            grade_class=student.grade_class, due_date__gte=today
+        ).select_related('subject').order_by('due_date')[:8] if student.grade_class else []
+
+        homework_submissions = HomeworkSubmission.objects.filter(
+            student=student
+        ).select_related('homework__subject').order_by('-submitted_at')[:8]
+
+        fees = StudentFee.objects.filter(student=student).select_related('fee_type').order_by('-due_date')
+        total_debt = sum(f.balance_due for f in fees)
+
+        quiz_results = QuizResult.objects.filter(student=student).select_related('quiz__subject').order_by('-completed_at')[:5]
+
+        avg_score = grades.aggregate(avg=Avg('score'))['avg'] or 0
+
+        return render(request, 'cabinet.html', {
+            'student': student,
+            'grades': grades,
+            'attendances': attendances,
+            'att_percentage': round(present_att / total_att * 100, 1) if total_att > 0 else 100.0,
+            'today_timetable': today_timetable,
+            'next_lesson': next_lesson,
+            'homeworks': homeworks,
+            'homework_submissions': homework_submissions,
+            'fees': fees,
+            'total_debt': total_debt,
+            'quiz_results': quiz_results,
+            'avg_score': round(avg_score, 1),
+            'today_date': today,
+        })
 
 # ── Autentifikatsiya ──────────────────────────────────────────
 
@@ -513,12 +589,7 @@ class GradeBookView(LoginRequiredMixin, View):
                 grade.full_clean()
                 grade.save()
                 messages.success(request, f"{grade.student.first_name}ga {grade.score} baho qo'yildi!")
-                if grade.student.user:
-                    send_system_notification(
-                        grade.student.user, "Yangi Baho!",
-                        f"{grade.subject.name} fanidan {grade.score} ball olindingiz.",
-                        'EXAM', '/grades/'
-                    )
+
             except ValidationError as e:
                 messages.error(request, f"Xatolik: {e.messages[0] if hasattr(e, 'messages') else e}")
             return redirect(f'/grades/?class_id={grade.student.grade_class_id}&subject_id={grade.subject.id}')
@@ -692,12 +763,7 @@ class StudentFeeCreateView(RoleRequiredMixin, View):
         if form.is_valid():
             fee = form.save()
             messages.success(request, f"{fee.student} uchun {fee.fee_type.name} biriktirildi!")
-            if fee.student.user:
-                send_system_notification(
-                    fee.student.user, "Yangi To'lov Belgilandi",
-                    f"{fee.fee_type.name}: {fee.net_amount:,.0f} UZS to'lovi biriktirildi.",
-                    'FEE', '/fees/'
-                )
+
         else:
             messages.error(request, "To'lov biriktirishda xatolik yuz berdi.")
         return redirect('fee_list')
@@ -873,20 +939,6 @@ class AnnouncementListView(LoginRequiredMixin, View):
         messages.error(request, "E'lon kiritishda xatolik!")
         return redirect('announcement_list')
 
-
-class NotificationListView(LoginRequiredMixin, View):
-    def get(self, request):
-        return render(request, 'notifications.html', {
-            'notifications': Notification.objects.filter(user=request.user)
-        })
-
-
-class MarkNotificationReadView(LoginRequiredMixin, View):
-    def post(self, request, pk):
-        notif = get_object_or_404(Notification, pk=pk, user=request.user)
-        notif.is_read = True
-        notif.save()
-        return JsonResponse({'status': 'ok'})
 
 
 # ── Quizzes ───────────────────────────────────────────────────

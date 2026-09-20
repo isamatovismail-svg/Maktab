@@ -3,7 +3,7 @@ from .models import (
     UserProfile, GradeClass, Subject, ParentProfile, Teacher, Student,
     Timetable, Lesson, Grade, Attendance, FeeType, StudentFee, PaymentRecord,
     Homework, HomeworkSubmission, Exam, ExamResult, Announcement,
-    Notification, Quiz, Question, QuizResult
+    Quiz, Question, QuizResult
 )
 
 @admin.register(UserProfile)
@@ -116,11 +116,6 @@ class AnnouncementAdmin(admin.ModelAdmin):
     list_display = ('title', 'target_role', 'grade_class', 'created_by', 'created_at')
     list_filter = ('target_role', 'created_at')
 
-
-@admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'title', 'notification_type', 'is_read', 'created_at')
-    list_filter = ('notification_type', 'is_read')
 
 
 class QuestionInline(admin.TabularInline):

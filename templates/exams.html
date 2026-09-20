@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Imtihonlar{% endblock %}
+{% block header_title %}Imtihonlar{% endblock %}
+{% block header_subtitle %}Barcha imtihonlar ro'yxati va boshqaruvi{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% if is_admin or is_teacher %}
+    <div class="glass-card mb-4 p-4">
+        <h4 class="mb-3 text-white"><i class="fas fa-plus-circle text-accent-cyan me-2"></i> Yangi imtihon qo'shish</h4>
+        <form method="post" action="">
+            {% csrf_token %}
+            <div class="row g-3">
+                {% for field in form %}
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="text-muted mb-1">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                        <div class="text-danger small mt-1">{{ field.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="col-md-12 text-end mt-3">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i> Saqlash</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="glass-card p-4">
+        <div class="table-responsive">
+            <table class="modern-table w-100">
+                <thead>
+                    <tr>
+                        <th>Nomi</th>
+                        <th>Fan</th>
+                        <th>Sinf</th>
+                        <th>Sana</th>
+                        <th>Max. Ball</th>
+                        {% if is_admin or is_teacher %}
+                        <th>Harakatlar</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in exams %}
+                    <tr>
+                        <td class="text-main fw-bold">{{ exam.title }}</td>
+                        <td><span class="badge badge-primary"><i class="fas fa-book me-1"></i> {{ exam.subject.name }}</span></td>
+                        <td class="text-main">{{ exam.grade_class.name }}</td>
+                        <td class="text-muted">{{ exam.exam_date|date:"d.m.Y" }}</td>
+                        <td class="text-accent-emerald fw-bold">{{ exam.total_marks }}</td>
+                        {% if is_admin or is_teacher %}
+                        <td>
+                            <a href="{% url 'exam_results' exam.id %}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-edit me-1"></i> Natijalar kiritish
+                            </a>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if is_admin or is_teacher %}6{% else %}5{% endif %}" class="text-center py-4 text-muted">
+                            <i class="fas fa-folder-open mb-2" style="font-size: 2rem;"></i>
+                            <p class="mb-0">Hozircha imtihonlar mavjud emas.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

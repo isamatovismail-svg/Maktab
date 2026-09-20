@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Natijalar: {{ exam.title }}{% endblock %}
+{% block header_title %}{{ exam.title }}{% endblock %}
+{% block header_subtitle %}{{ exam.subject.name }} | {{ exam.grade_class.name }} | {{ exam.exam_date|date:"d.m.Y" }} | Max. Ball: {{ exam.total_marks }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="mb-4">
+        <a href="{% url 'exams' %}" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i> Orqaga qaytish</a>
+    </div>
+
+    <div class="glass-card p-4">
+        <h4 class="mb-4 text-white"><i class="fas fa-poll text-accent-amber me-2"></i> O'quvchilar natijalarini kiritish</h4>
+        
+        <form method="post" action="">
+            {% csrf_token %}
+            <div class="table-responsive">
+                <table class="modern-table w-100">
+                    <thead>
+                        <tr>
+                            <th>O'quvchi F.I.O.</th>
+                            <th>Joriy Ball</th>
+                            <th>Yangi Ball (0 - {{ exam.total_marks }})</th>
+                            <th>Izoh</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td class="text-main fw-bold">{{ student.get_full_name }}</td>
+                            <td>
+                                {% for sid, res in existing_results.items %}
+                                    {% if sid == student.id %}
+                                        <span class="badge badge-success">{{ res.marks }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            <td>
+                                <input type="number" name="marks_{{ student.id }}" class="form-control" min="0" max="{{ exam.total_marks }}" placeholder="Ballni kiriting" style="max-width: 150px;">
+                            </td>
+                            <td>
+                                <input type="text" name="comment_{{ student.id }}" class="form-control" placeholder="Izoh (ixtiyoriy)">
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">
+                                Ushbu sinfda o'quvchilar mavjud emas.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if students %}
+            <div class="mt-4 text-end">
+                <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-check-circle me-2"></i> Natijalarni Saqlash</button>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}

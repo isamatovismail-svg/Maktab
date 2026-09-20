@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+
+{% block title %}O'quvchi Profili - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+
+{% block header_title %}{{ student.first_name }} {{ student.last_name }}{% endblock %}
+{% block header_subtitle %}Shaxsiy kabinet va o'zlashtirish varaqasi{% endblock %}
+
+{% block content %}
+<div class="glass-card p-4 mb-4" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent-cyan)); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; font-weight: bold; border: 2px solid var(--border-card); box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+            {{ student.first_name|first }}{{ student.last_name|first }}
+        </div>
+        <div>
+            <h2 style="margin: 0; color: var(--text-main);">{{ student.first_name }} {{ student.last_name }}</h2>
+            <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; display: flex; gap: 15px; align-items: center;">
+                <span><i class="fas fa-id-card"></i> {{ student.student_id }}</span>
+                <span><i class="fas fa-users-class"></i> {% if student.grade_class %}{{ student.grade_class.name }}{% else %}Sinf belgilanmagan{% endif %}</span>
+                <span>
+                    {% if student.status == 'ACTIVE' %}
+                        <span class="badge badge-success"><i class="fas fa-check-circle"></i> Faol</span>
+                    {% elif student.status == 'INACTIVE' %}
+                        <span class="badge badge-warning"><i class="fas fa-exclamation-circle"></i> Nofaol</span>
+                    {% elif student.status == 'GRADUATED' %}
+                        <span class="badge badge-primary"><i class="fas fa-graduation-cap"></i> Bitirgan</span>
+                    {% else %}
+                        <span class="badge">{{ student.status }}</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; display: flex; gap: 15px;">
+                <span><i class="fas fa-phone"></i> {{ student.phone }}</span>
+                {% if student.parent_phone %}<span><i class="fas fa-user-friends"></i> {{ student.parent_phone }}</span>{% endif %}
+            </div>
+        </div>
+    </div>
+    
+    {% if is_admin or is_teacher %}
+    <div style="display: flex; gap: 10px;">
+        <a href="/students/" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Ro'yxatga qaytish</a>
+        <a href="/students/{{ student.pk }}/edit/" class="btn btn-primary"><i class="fas fa-edit"></i> Tahrirlash</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="color: var(--accent-amber);"><i class="fas fa-star"></i></div>
+            <div class="stat-val">
+                {% if grades %}
+                    {# As we don't have avg directly in context unless calculated, we just show something simple or a placeholder if context doesn't provide avg_score. Assuming no avg_score context var is passed directly other than att_percentage. We can just leave it static or check length #}
+                    Baxolar ({{ grades|length }})
+                {% else %}
+                    Yo'q
+                {% endif %}
+            </div>
+            <div class="stat-lbl">O'rtacha o'zlashtirish</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="color: var(--accent-cyan);"><i class="fas fa-calendar-check"></i></div>
+            <div class="stat-val">
+                {% if att_percentage %}
+                    {{ att_percentage|floatformat:1 }}%
+                {% else %}
+                    0%
+                {% endif %}
+            </div>
+            <div class="stat-lbl">Davomat ko'rsatkichi</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="color: var(--accent-emerald);"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div class="stat-val">
+                {{ fees|length }}
+            </div>
+            <div class="stat-lbl">To'lovlar tarixi</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="color: var(--primary);"><i class="fas fa-tasks"></i></div>
+            <div class="stat-val">{{ submissions|length }}</div>
+            <div class="stat-lbl">Uy vazifalari</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Grades Table -->
+    <div class="col-md-7 mb-4">
+        <div class="glass-card">
+            <div class="card-header" style="border-bottom: 1px solid var(--border-card); padding: 15px 20px;">
+                <h5 style="margin: 0; color: var(--text-main);"><i class="fas fa-graduation-cap" style="color: var(--primary); margin-right: 8px;"></i> Oxirgi Baholar</h5>
+            </div>
+            <div class="table-responsive p-3">
+                <table class="table modern-table">
+                    <thead>
+                        <tr>
+                            <th>Fan</th>
+                            <th>Baho</th>
+                            <th>Turi</th>
+                            <th>Sana</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grade in grades %}
+                        <tr>
+                            <td>
+                                <i class="fas fa-{{ grade.subject.icon|default:'book' }}" style="color: {{ grade.subject.color|default:'var(--primary)' }};"></i> 
+                                {{ grade.subject.name }}
+                            </td>
+                            <td>
+                                {% if grade.score >= 85 %}
+                                    <span class="badge badge-success">{{ grade.score }}</span>
+                                {% elif grade.score >= 70 %}
+                                    <span class="badge badge-primary">{{ grade.score }}</span>
+                                {% elif grade.score >= 55 %}
+                                    <span class="badge badge-warning">{{ grade.score }}</span>
+                                {% else %}
+                                    <span class="badge badge-danger">{{ grade.score }}</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge badge-secondary">{{ grade.grade_type|default:"Odatiy" }}</span></td>
+                            <td class="text-muted">{{ grade.date|date:"d.m.Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                <i class="fas fa-folder-open mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                                <p class="mb-0">Hozircha baholar yo'q</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="col-md-5 mb-4">
+        <div class="glass-card h-100">
+            <div class="card-header" style="border-bottom: 1px solid var(--border-card); padding: 15px 20px;">
+                <h5 style="margin: 0; color: var(--text-main);"><i class="fas fa-calendar-alt" style="color: var(--accent-cyan); margin-right: 8px;"></i> Davomat</h5>
+            </div>
+            <div class="table-responsive p-3">
+                <table class="table modern-table">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Fan</th>
+                            <th>Holat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for att in attendances %}
+                        <tr>
+                            <td class="text-muted">{{ att.date|date:"d.m" }}</td>
+                            <td>{{ att.subject.name|default:"-" }}</td>
+                            <td>
+                                {% if att.status == 'B' %}
+                                    ✅ <span class="text-success small">Bor</span>
+                                {% elif att.status == 'K' %}
+                                    ⏰ <span class="text-warning small">Kech qoldi</span>
+                                {% elif att.status == 'Y' %}
+                                    ❌ <span class="text-danger small">Yo'q</span>
+                                {% elif att.status == 'S' %}
+                                    ℹ️ <span class="text-info small">Sababli</span>
+                                {% else %}
+                                    {{ att.status }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">
+                                <i class="fas fa-clipboard-check mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                                <p class="mb-0">Davomat ma'lumotlari yo'q</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Homework Submissions -->
+<div class="glass-card mb-4">
+    <div class="card-header" style="border-bottom: 1px solid var(--border-card); padding: 15px 20px;">
+        <h5 style="margin: 0; color: var(--text-main);"><i class="fas fa-book-open" style="color: var(--accent-amber); margin-right: 8px;"></i> Uy vazifalari tarixi</h5>
+    </div>
+    <div class="table-responsive p-3">
+        <table class="table modern-table">
+            <thead>
+                <tr>
+                    <th>Vazifa</th>
+                    <th>Fan</th>
+                    <th>Holat</th>
+                    <th>Baho</th>
+                    <th>Topshirilgan vaqt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in submissions %}
+                <tr>
+                    <td>{{ sub.homework.title }}</td>
+                    <td>{{ sub.homework.subject.name }}</td>
+                    <td>
+                        {% if sub.status == 'GRADED' %}
+                            <span class="badge badge-success">Baholangan</span>
+                        {% elif sub.status == 'SUBMITTED' %}
+                            <span class="badge badge-primary">Topshirilgan</span>
+                        {% elif sub.status == 'LATE' %}
+                            <span class="badge badge-warning">Kechikkan</span>
+                        {% else %}
+                            <span class="badge">{{ sub.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if sub.score %}
+                            <strong>{{ sub.score }}</strong>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted">{{ sub.submitted_at|date:"d.m.Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="fas fa-edit mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                        <p class="mb-0">Uy vazifalari mavjud emas</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Fees -->
+<div class="glass-card mb-4">
+    <div class="card-header" style="border-bottom: 1px solid var(--border-card); padding: 15px 20px;">
+        <h5 style="margin: 0; color: var(--text-main);"><i class="fas fa-money-bill-wave" style="color: var(--accent-emerald); margin-right: 8px;"></i> To'lovlar tarixi</h5>
+    </div>
+    <div class="table-responsive p-3">
+        <table class="table modern-table">
+            <thead>
+                <tr>
+                    <th>To'lov turi</th>
+                    <th>Asosiy summa</th>
+                    <th>Chegirma</th>
+                    <th>Jami summa</th>
+                    <th>To'langan</th>
+                    <th>Qarzdorlik</th>
+                    <th>Muddat</th>
+                    <th>Holat</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fee in fees %}
+                <tr>
+                    <td><strong>{{ fee.fee_type.name }}</strong></td>
+                    <td>{{ fee.amount|floatformat:0 }} so'm</td>
+                    <td>
+                        {% if fee.discount_amount %}
+                            <span class="text-success">-{{ fee.discount_amount|floatformat:0 }} so'm</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ fee.net_amount|floatformat:0 }} so'm</strong></td>
+                    <td class="text-success">{{ fee.total_paid|floatformat:0 }} so'm</td>
+                    <td class="{% if fee.balance_due > 0 %}text-danger{% endif %}">{{ fee.balance_due|floatformat:0 }} so'm</td>
+                    <td class="text-muted">{{ fee.due_date|date:"d.m.Y" }}</td>
+                    <td>
+                        {% if fee.status == 'PAID' %}
+                            <span class="badge badge-success">To'langan</span>
+                        {% elif fee.status == 'PARTIAL' %}
+                            <span class="badge badge-warning">Qisman</span>
+                        {% elif fee.status == 'OVERDUE' %}
+                            <span class="badge badge-danger">Muddati o'tgan</span>
+                        {% elif fee.status == 'PENDING' %}
+                            <span class="badge badge-primary">Kutilmoqda</span>
+                        {% else %}
+                            <span class="badge">{{ fee.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-wallet mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                        <p class="mb-0">To'lovlar tarixi mavjud emas</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

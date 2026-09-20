@@ -1,0 +1,414 @@
+{% extends 'base.html' %}
+
+{% block title %}O'quvchi Kabineti | Smart Maktab{% endblock %}
+
+{% block header_title %}Mening Kabinetim{% endblock %}
+{% block header_subtitle %}O'zlashtirish, dars jadvali va moliyaviy ma'lumotlar{% endblock %}
+
+{% block content %}
+<style>
+.cabinet-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+.profile-header { display: grid; grid-template-columns: auto 1fr auto; gap: 24px; align-items: center; }
+.big-avatar { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 800; color: white; }
+.stat-pill { background: rgba(255,255,255,0.06); border: 1px solid var(--border-card); border-radius: 12px; padding: 10px 16px; text-align: center; }
+.stat-pill-val { font-size: 20px; font-weight: 800; color: var(--text-main); }
+.stat-pill-lbl { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+.stat-pill-group { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.progress-bar-bg { background: rgba(255,255,255,0.08); border-radius: 6px; height: 8px; overflow: hidden; }
+.progress-bar-fill { height: 100%; border-radius: 6px; background: linear-gradient(135deg, #10b981, #06b6d4); }
+.hw-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 14px; padding: 16px; transition: all 0.3s ease; }
+.hw-card:hover { transform: translateY(-3px); background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.2); }
+.hw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.next-lesson-card { background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(6,182,212,0.2)); border: 1px solid rgba(99,102,241,0.4); border-radius: 16px; padding: 20px; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+.mini-lesson-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.mini-lesson-time { background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--accent-cyan); white-space: nowrap; }
+@media (max-width: 900px) { 
+    .cabinet-grid-2 { grid-template-columns: 1fr; } 
+    .profile-header { grid-template-columns: auto 1fr; }
+    .stat-pill-group { justify-content: flex-start; margin-top: 16px; grid-column: 1 / -1; }
+}
+.empty-state { text-align: center; padding: 30px 20px; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px dashed var(--border-card); }
+.score-green { color: #10b981; }
+.score-blue { color: #3b82f6; }
+.score-yellow { color: #f59e0b; }
+.score-red { color: #ef4444; }
+</style>
+
+<div class="glass-card mb-4">
+    <div class="profile-header">
+        <div class="big-avatar">
+            {% if student.first_name %}
+                {{ student.first_name|first|upper }}
+            {% else %}
+                O'
+            {% endif %}
+        </div>
+        <div>
+            <h2 class="mb-2" style="font-size: 24px; font-weight: 700; color: var(--text-main);">
+                {{ student.first_name }} {{ student.last_name }}
+            </h2>
+            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                <code style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 6px; color: var(--accent-cyan);">{{ student.student_id }}</code>
+                <span class="badge {% if student.status == 'ACTIVE' %}badge-success{% else %}badge-warning{% endif %}">{{ student.get_status_display|default:student.status }}</span>
+                <span class="badge badge-primary"><i class="fas fa-chalkboard-teacher me-1"></i> {{ student.grade_class.name }}</span>
+            </div>
+            <div class="d-flex gap-3 text-muted" style="font-size: 14px;">
+                {% if student.phone %}
+                <span><i class="fas fa-phone me-1"></i> {{ student.phone }}</span>
+                {% endif %}
+                {% if student.telegram_id %}
+                <span><i class="fab fa-telegram me-1"></i> {{ student.telegram_id }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="stat-pill-group">
+            <div class="stat-pill">
+                <div class="stat-pill-val">{{ avg_score|floatformat:1|default:"0.0" }}</div>
+                <div class="stat-pill-lbl">O'rtacha baho</div>
+            </div>
+            <div class="stat-pill">
+                <div class="stat-pill-val">{{ att_percentage|floatformat:1|default:"0.0" }}%</div>
+                <div class="stat-pill-lbl">Davomat</div>
+            </div>
+            <div class="stat-pill" style="{% if total_debt > 0 %}border-color: var(--accent-rose); background: rgba(244,63,94,0.1);{% endif %}">
+                <div class="stat-pill-val {% if total_debt > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ total_debt|floatformat:0 }}
+                </div>
+                <div class="stat-pill-lbl">Qarz (UZS)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="cabinet-grid-2">
+    <!-- Bugungi Darslar -->
+    <div class="glass-card" style="padding: 20px;">
+        <h4 class="mb-3" style="font-size: 18px; font-weight: 600;"><i class="fas fa-calendar-day me-2 text-primary"></i>Bugungi Darslar ({{ today_date|date:"d.m.Y" }})</h4>
+        {% if today_timetable %}
+            <div class="d-flex flex-column gap-2">
+                {% for lesson in today_timetable %}
+                <div class="mini-lesson-card">
+                    <div class="mini-lesson-time">{{ lesson.time_slot }}</div>
+                    <div class="flex-grow-1">
+                        <div style="font-weight: 600;">
+                            {% if lesson.subject.icon %}<i class="fas {{ lesson.subject.icon }} me-1" style="color: {{ lesson.subject.color|default:'var(--primary)' }};"></i>{% endif %}
+                            {{ lesson.subject.name }}
+                        </div>
+                        <div class="text-muted" style="font-size: 13px;">{{ lesson.teacher.first_name }} • xona: {{ lesson.room }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-smile text-muted mb-2" style="font-size: 24px;"></i>
+                <div>Bugun darslar yo'q, dam oling!</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Keyingi Darsim -->
+    <div class="glass-card" style="padding: 20px; display: flex; flex-direction: column;">
+        <h4 class="mb-3" style="font-size: 18px; font-weight: 600;"><i class="fas fa-forward me-2 text-cyan"></i>Keyingi Darsim</h4>
+        {% if next_lesson %}
+            <div class="next-lesson-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="badge" style="background: rgba(255,255,255,0.2); color: white;"><i class="far fa-clock me-1"></i>{{ next_lesson.time_slot }}</div>
+                    <div class="badge" style="background: rgba(255,255,255,0.2); color: white;"><i class="fas fa-map-marker-alt me-1"></i>{{ next_lesson.room }}</div>
+                </div>
+                <h3 style="font-size: 28px; font-weight: 700; color: white; margin-bottom: 8px;">
+                    {% if next_lesson.subject.icon %}<i class="fas {{ next_lesson.subject.icon }} me-2"></i>{% endif %}
+                    {{ next_lesson.subject.name }}
+                </h3>
+                <div style="color: rgba(255,255,255,0.8); font-size: 16px;">
+                    <i class="fas fa-user-tie me-1"></i> {{ next_lesson.teacher.first_name }} {{ next_lesson.teacher.last_name }}
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state" style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+                <i class="fas fa-bed text-muted mb-2" style="font-size: 24px;"></i>
+                <div>Keyingi dars topilmadi.</div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="cabinet-grid-2">
+    <!-- So'nggi Baholar -->
+    <div class="glass-card" style="padding: 20px;">
+        <h4 class="mb-3" style="font-size: 18px; font-weight: 600;"><i class="fas fa-star me-2 text-warning"></i>So'nggi Baholar</h4>
+        {% if grades %}
+            <div class="table-responsive">
+                <table class="table modern-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fan</th>
+                            <th>Baho</th>
+                            <th>Sana</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for g in grades|slice:":5" %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <span style="color: {{ g.subject.color|default:'inherit' }};">
+                                        {% if g.subject.icon %}<i class="fas {{ g.subject.icon }} me-1"></i>{% endif %}
+                                        {{ g.subject.name }}
+                                    </span>
+                                </div>
+                                <div class="text-muted" style="font-size: 12px;">{{ g.grade_type }}</div>
+                            </td>
+                            <td>
+                                {% if g.score >= 85 %}
+                                    <span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid #10b981;">{{ g.score }}</span>
+                                {% elif g.score >= 70 %}
+                                    <span class="badge" style="background: rgba(59,130,246,0.1); color: #3b82f6; border: 1px solid #3b82f6;">{{ g.score }}</span>
+                                {% elif g.score >= 55 %}
+                                    <span class="badge" style="background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid #f59e0b;">{{ g.score }}</span>
+                                {% else %}
+                                    <span class="badge" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid #ef4444;">{{ g.score }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted">{{ g.date|date:"d.m.Y" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">Hali baholar yo'q</div>
+        {% endif %}
+    </div>
+
+    <!-- Davomat -->
+    <div class="glass-card" style="padding: 20px;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0" style="font-size: 18px; font-weight: 600;"><i class="fas fa-user-check me-2 text-success"></i>Davomat</h4>
+            <div style="font-size: 14px; font-weight: 600; color: var(--accent-emerald);">{{ att_percentage|floatformat:1|default:"0.0" }}%</div>
+        </div>
+        <div class="progress-bar-bg mb-3">
+            <div class="progress-bar-fill" style="width: {{ att_percentage|default:0 }}%;"></div>
+        </div>
+        
+        {% if attendances %}
+            <div class="table-responsive">
+                <table class="table modern-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Fan</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for att in attendances|slice:":5" %}
+                        <tr>
+                            <td class="text-muted">{{ att.date|date:"d.m.Y" }}</td>
+                            <td>{{ att.subject.name }}</td>
+                            <td>
+                                {% if att.status == 'B' %}
+                                    <span title="Bor">✅</span>
+                                {% elif att.status == 'K' %}
+                                    <span title="Kechikkan">⏰</span>
+                                {% elif att.status == 'Y' %}
+                                    <span title="Yo'q">❌</span>
+                                {% elif att.status == 'S' %}
+                                    <span title="Sababli">ℹ️</span>
+                                {% else %}
+                                    {{ att.status }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">Davomat ma'lumotlari yo'q</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Faol Vazifalar -->
+<div class="glass-card mb-4" style="padding: 20px;">
+    <h4 class="mb-4" style="font-size: 18px; font-weight: 600;"><i class="fas fa-book-open me-2 text-primary"></i>Faol Vazifalar</h4>
+    {% if homeworks %}
+        <div class="hw-grid">
+            {% for hw in homeworks %}
+                <div class="hw-card">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        {% if hw.subject.icon %}
+                            <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;">
+                                <i class="fas {{ hw.subject.icon }}" style="color: {{ hw.subject.color|default:'var(--primary)' }};"></i>
+                            </div>
+                        {% endif %}
+                        <div style="font-weight: 600; font-size: 14px;">{{ hw.subject.name }}</div>
+                    </div>
+                    <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">{{ hw.title }}</div>
+                    <div class="text-muted mb-3" style="font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        {{ hw.description }}
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div style="font-size: 12px; color: var(--text-muted);">
+                            <i class="far fa-calendar-alt me-1"></i> {{ hw.due_date|date:"d.m.Y H:i" }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">Ayni paytda faol vazifalar yo'q.</div>
+    {% endif %}
+</div>
+
+<!-- Mening topshiriqlarim -->
+<div class="glass-card mb-4" style="padding: 20px;">
+    <h4 class="mb-4" style="font-size: 18px; font-weight: 600;"><i class="fas fa-upload me-2 text-info"></i>Mening Topshiriqlarim</h4>
+    {% if homework_submissions %}
+        <div class="table-responsive">
+            <table class="table modern-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Vazifa</th>
+                        <th>Fan</th>
+                        <th>Status</th>
+                        <th>Baho</th>
+                        <th>Sana</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in homework_submissions %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ sub.homework.title }}</td>
+                        <td class="text-muted">{{ sub.homework.subject.name }}</td>
+                        <td>
+                            {% if sub.status == 'SUBMITTED' %}
+                                <span class="badge badge-primary">Topshirilgan</span>
+                            {% elif sub.status == 'GRADED' %}
+                                <span class="badge badge-success">Baholangan</span>
+                            {% elif sub.status == 'LATE' %}
+                                <span class="badge badge-danger">Kechikkan</span>
+                            {% elif sub.status == 'PENDING' %}
+                                <span class="badge badge-warning">Kutilmoqda</span>
+                            {% else %}
+                                <span class="badge" style="background: rgba(255,255,255,0.1);">{{ sub.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if sub.score %}
+                                <span style="font-weight: 700;">{{ sub.score }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ sub.submitted_at|date:"d.m.Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">Hali topshiriqlar yuklanmagan.</div>
+    {% endif %}
+</div>
+
+<!-- Test Natijalari -->
+<div class="glass-card mb-4" style="padding: 20px;">
+    <h4 class="mb-4" style="font-size: 18px; font-weight: 600;"><i class="fas fa-clipboard-check me-2 text-primary"></i>Test Natijalari</h4>
+    {% if quiz_results %}
+        <div class="table-responsive">
+            <table class="table modern-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Test Nomi</th>
+                        <th>Fan</th>
+                        <th>Natija</th>
+                        <th>Foiz</th>
+                        <th>Sana</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for qz in quiz_results %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ qz.quiz.title }}</td>
+                        <td class="text-muted">{{ qz.quiz.subject.name }}</td>
+                        <td>{{ qz.score }} / {{ qz.total_questions }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span style="font-weight: 600; font-size: 14px;">{{ qz.percentage|floatformat:1 }}%</span>
+                                <div class="progress-bar-bg" style="width: 60px; height: 6px;">
+                                    <div class="progress-bar-fill" style="width: {{ qz.percentage|default:0 }}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-muted">{{ qz.completed_at|date:"d.m.Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">Hali test ishlanmagan.</div>
+    {% endif %}
+</div>
+
+<!-- To'lovlar -->
+<div class="glass-card mb-4" style="padding: 20px;">
+    <h4 class="mb-4" style="font-size: 18px; font-weight: 600;"><i class="fas fa-wallet me-2 text-success"></i>To'lovlar va Qarzlar</h4>
+    
+    {% if total_debt > 0 %}
+    <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px;">
+        <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239,68,68,0.2); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div>
+            <div style="color: #ef4444; font-weight: 700; font-size: 16px;">Diqqat, qarzdorlik mavjud!</div>
+            <div class="text-muted" style="font-size: 14px;">Iltimos, o'z vaqtida to'lovni amalga oshiring. Umumiy qarz: <strong>{{ total_debt|floatformat:0 }} UZS</strong></div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if fees %}
+        <div class="table-responsive">
+            <table class="table modern-table mb-0">
+                <thead>
+                    <tr>
+                        <th>To'lov Turi</th>
+                        <th>Summa</th>
+                        <th>Chegirma</th>
+                        <th>To'lash kerak</th>
+                        <th>Holati</th>
+                        <th>Muddat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fee in fees %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ fee.fee_type.name }}</td>
+                        <td>{{ fee.amount|floatformat:0 }}</td>
+                        <td class="text-muted">{{ fee.discount_amount|floatformat:0 }}</td>
+                        <td style="font-weight: 600;">{{ fee.net_amount|floatformat:0 }}</td>
+                        <td>
+                            {% if fee.status == 'PAID' %}
+                                <span class="badge badge-success">To'langan</span>
+                            {% elif fee.status == 'PARTIAL' %}
+                                <span class="badge badge-warning">Qisman</span>
+                            {% elif fee.status == 'OVERDUE' %}
+                                <span class="badge badge-danger">Kechikkan</span>
+                            {% else %}
+                                <span class="badge badge-primary">Kutilmoqda</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ fee.due_date|date:"d.m.Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">To'lov ma'lumotlari yo'q.</div>
+    {% endif %}
+</div>
+
+{% endblock %}

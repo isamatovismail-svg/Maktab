@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if is_admin %}Fanlar Boshqaruvi{% else %}Fanlarim{% endif %}
+{% endblock %}
+
+{% block header_title %}
+    {% if is_admin %}Fanlar Boshqaruvi{% else %}Fanlarim{% endif %}
+{% endblock %}
+
+{% block header_subtitle %}
+    Maktabdagi o'quv fanlari ro'yxati
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    {% if is_admin %}
+    <!-- Add Subject Form -->
+    <div class="glass-card p-4 mb-5">
+        <h3 class="text-main mb-4"><i class="fas fa-plus-circle text-accent-cyan me-2"></i> Yangi fan qo'shish</h3>
+        <form method="post" action="">
+            {% csrf_token %}
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3 form-group">
+                    <label class="form-label text-main">Fan nomi</label>
+                    {{ form.name }}
+                </div>
+                <div class="col-md-3 form-group">
+                    <label class="form-label text-main">Fan kodi</label>
+                    {{ form.code }}
+                </div>
+                <div class="col-md-3 form-group">
+                    <label class="form-label text-main">Ikonka (Emoji)</label>
+                    {{ form.icon }}
+                </div>
+                <div class="col-md-2 form-group">
+                    <label class="form-label text-main">Rangi</label>
+                    {{ form.color }}
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100 py-2"><i class="fas fa-save"></i></button>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Subjects Grid -->
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+        {% for subject in subjects %}
+        <div class="col">
+            <div class="glass-card h-100 p-4 text-center d-flex flex-column align-items-center justify-content-center hover-lift" 
+                 style="border-bottom: 4px solid {{ subject.color|default:'var(--primary)' }};">
+                <div class="display-3 mb-3">{{ subject.icon }}</div>
+                <h4 class="text-main fw-bold mb-1">{{ subject.name }}</h4>
+                <p class="text-muted mb-0 small">{{ subject.code }}</p>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 w-100">
+            <div class="glass-card p-5 text-center">
+                <i class="fas fa-book-open text-muted mb-3" style="font-size: 3rem;"></i>
+                <h4 class="text-main">Fanlar hali qo'shilmagan</h4>
+                <p class="text-muted">Tizimda hozircha hech qanday fan mavjud emas.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<style>
+    .hover-lift {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .hover-lift:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+    .form-group input, .form-group select, .form-group textarea {
+        width: 100%;
+        padding: 0.5rem 1rem;
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-card);
+        color: var(--text-main);
+        border-radius: 0.5rem;
+    }
+    .form-group input[type="color"] {
+        padding: 0.2rem;
+        height: 38px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

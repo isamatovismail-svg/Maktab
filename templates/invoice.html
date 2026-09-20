@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Kvitansiya - Smart Maktab{% endblock %}
+{% block header_title %}Hisob-faktura{% endblock %}
+{% block header_subtitle %}To'lov kvitansiyasi{% endblock %}
+
+{% block content %}
+<div class="row btn-print-back mb-3">
+    <div class="col-12 d-flex justify-content-between">
+        <a href="javascript:history.back()" class="btn btn-secondary"><i class="fa-solid fa-arrow-left me-2"></i>Orqaga</a>
+        <button onclick="window.print()" class="btn btn-primary"><i class="fa-solid fa-print me-2"></i>Chop etish</button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="glass-card invoice-container p-4 p-md-5">
+            <!-- Header -->
+            <div class="row border-bottom pb-4 mb-4">
+                <div class="col-sm-6">
+                    <h2 class="fw-bold mb-0" style="color: var(--primary);">SMART MAKTAB</h2>
+                    <p class="text-muted mb-0">Zamonaviy ta'lim tizimi</p>
+                </div>
+                <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+                    <h3 class="fw-bold mb-1">KVITANSIYA / HISOB-FAKTURA</h3>
+                    <p class="text-muted mb-0">Sana: {% now "d.m.Y" %}</p>
+                </div>
+            </div>
+            
+            <!-- Details -->
+            <div class="row mb-5">
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <h5 class="fw-bold mb-3">O'quvchi ma'lumotlari:</h5>
+                    <table class="table table-sm table-borderless m-0">
+                        <tr>
+                            <td class="text-muted px-0" style="width: 120px;">F.I.SH:</td>
+                            <td class="fw-bold px-0">{{ fee.student.get_full_name|default:fee.student.username }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted px-0">ID raqami:</td>
+                            <td class="fw-bold px-0">{{ fee.student.id }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted px-0">Sinf:</td>
+                            <td class="fw-bold px-0">{{ fee.student.student_profile.current_class.name|default:"-" }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="fw-bold mb-3">To'lov ma'lumotlari:</h5>
+                    <table class="table table-sm table-borderless m-0">
+                        <tr>
+                            <td class="text-muted px-0" style="width: 140px;">To'lov turi:</td>
+                            <td class="fw-bold px-0">{{ fee.get_fee_type_display|default:fee.fee_type }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted px-0">O'quv yili:</td>
+                            <td class="fw-bold px-0">{{ fee.academic_year.name|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted px-0">Oxirgi muddat:</td>
+                            <td class="fw-bold px-0">{{ fee.due_date|date:"d.m.Y" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Fee Breakdown -->
+            <h5 class="fw-bold mb-3">Hisob-kitob:</h5>
+            <div class="table-responsive mb-5">
+                <table class="table modern-table table-bordered mb-0">
+                    <thead>
+                        <tr>
+                            <th>Ta'rif</th>
+                            <th class="text-end">Umumiy summa</th>
+                            <th class="text-end">Chegirma</th>
+                            <th class="text-end">To'lanishi kerak</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ fee.get_fee_type_display|default:fee.fee_type }} to'lovi</td>
+                            <td class="text-end">{{ fee.amount|floatformat:2 }} so'm</td>
+                            <td class="text-end">{{ fee.discount_amount|floatformat:2 }} so'm</td>
+                            <td class="text-end fw-bold">{{ fee.net_amount|floatformat:2 }} so'm</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Payments -->
+            <h5 class="fw-bold mb-3">To'lovlar tarixi:</h5>
+            {% if payments %}
+                <div class="table-responsive mb-4">
+                    <table class="table modern-table table-bordered mb-0">
+                        <thead>
+                            <tr>
+                                <th>Kvitansiya #</th>
+                                <th>Sana</th>
+                                <th>To'lov usuli</th>
+                                <th class="text-end">Summa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr>
+                                <td>{{ payment.receipt_number }}</td>
+                                <td>{{ payment.payment_date|date:"d.m.Y H:i" }}</td>
+                                <td>{{ payment.get_payment_method_display|default:payment.payment_method }}</td>
+                                <td class="text-end">{{ payment.paid_amount|floatformat:2 }} so'm</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">Jami to'langan:</td>
+                                <td class="text-end fw-bold">{{ fee.total_paid|default:"0"|floatformat:2 }} so'm</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold text-danger">Qoldiq:</td>
+                                <td class="text-end fw-bold text-danger">{{ fee.balance|default:fee.net_amount|floatformat:2 }} so'm</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-warning mb-4">
+                    To'lovlar topilmadi.
+                </div>
+            {% endif %}
+            
+            <div class="text-center mt-5 pt-3 border-top text-muted">
+                <small>Savollar bo'yicha maktab ma'muriyatiga murojaat qiling.</small><br>
+                <small>Smart Maktab &copy; {% now "Y" %}</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .invoice-container {
+        background: var(--bg-card);
+        color: var(--text-main);
+    }
+    
+    .invoice-container .table {
+        color: var(--text-main);
+    }
+
+    @media print {
+        @page { margin: 1cm; }
+        
+        body, html {
+            background: white !important;
+            color: black !important;
+        }
+        
+        .sidebar, aside.sidebar, .top-header, .header, .btn-print-back, .navbar { 
+            display: none !important; 
+        }
+        
+        main.main-content, .content-wrapper, #content { 
+            margin-left: 0 !important; 
+            margin-top: 0 !important;
+            padding: 0 !important;
+        }
+        
+        .glass-card, .invoice-container { 
+            background: white !important; 
+            color: black !important; 
+            border: 1px solid #ccc !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            padding: 2rem !important;
+        }
+        
+        .table { color: black !important; border-color: #ddd !important; }
+        .table th, .table td { border-color: #ddd !important; }
+        .text-main, .text-muted, .text-danger { color: black !important; }
+        .alert-warning { border: 1px solid #ddd; color: black; background: transparent; }
+    }
+</style>
+{% endblock %}

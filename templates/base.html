@@ -487,12 +487,6 @@
                         <span>Dars Jadvali</span>
                     </a>
                 </li>
-                <li class="nav-item {% if 'fee' in request.resolver_match.url_name %}active{% endif %}">
-                    <a href="{% url 'fee_list' %}">
-                        <i class="fa-solid fa-file-invoice-dollar"></i>
-                        <span>To'lovlar</span>
-                    </a>
-                </li>
             {% elif is_teacher %}
                 <li class="nav-section-label">O'qituvchi Xonasi</li>
                 <li class="nav-item {% if 'lesson' in request.resolver_match.url_name %}active{% endif %}">
@@ -533,6 +527,12 @@
                 </li>
             {% else %}
                 <li class="nav-section-label">O'quvchi Kabineti</li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'cabinet' %}active{% endif %}">
+                    <a href="{% url 'cabinet' %}">
+                        <i class="fa-solid fa-id-card"></i>
+                        <span>Shaxsiy Kabinetim</span>
+                    </a>
+                </li>
                 <li class="nav-item {% if 'lesson' in request.resolver_match.url_name %}active{% endif %}">
                     <a href="{% url 'lesson_list' %}">
                         <i class="fa-solid fa-chalkboard"></i>
@@ -563,7 +563,21 @@
                         <span>Onlayn Testlar</span>
                     </a>
                 </li>
+                <li class="nav-item {% if 'fee' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'fee_list' %}">
+                        <i class="fa-solid fa-wallet"></i>
+                        <span>To'lovlarim</span>
+                    </a>
+                </li>
             {% endif %}
+
+            <li class="nav-section-label">Umumiy</li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'announcement_list' %}active{% endif %}">
+                <a href="{% url 'announcement_list' %}">
+                    <i class="fa-solid fa-bullhorn"></i>
+                    <span>E'lonlar</span>
+                </a>
+            </li>
         </ul>
 
         {% if user.is_authenticated %}
