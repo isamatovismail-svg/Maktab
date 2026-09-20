@@ -190,3 +190,28 @@ class RoleAuthorizationSecurityTests(TestCase):
             'date': datetime.date.today().isoformat(),
         })
         self.assertEqual(response.status_code, 403)
+
+    # Test 13: Teacher A cannot delete Teacher B's lesson
+    def test_13_teacher_a_cannot_delete_teacher_b_lesson(self):
+        self.client.login(username='teacher_a', password='password123')
+        response = self.client.post(reverse('lesson_delete', kwargs={'pk': self.lesson_english.pk}))
+        self.assertEqual(response.status_code, 403)
+
+    # Test 14: Teacher A cannot access Teacher B's student profile
+    def test_14_teacher_a_cannot_access_teacher_b_student_profile(self):
+        self.client.login(username='teacher_a', password='password123')
+        response = self.client.get(reverse('student_profile', kwargs={'pk': self.student_vali.pk}))
+        self.assertEqual(response.status_code, 403)
+
+    # Test 15: Student cannot create or modify grades
+    def test_15_student_cannot_create_or_modify_grades(self):
+        self.client.login(username='student_ali', password='password123')
+        response = self.client.post(reverse('gradebook'), {
+            'student': self.student_ali.pk,
+            'subject': self.math.pk,
+            'score': 5,
+            'grade_type': 'KUNDALIK',
+            'date': datetime.date.today().isoformat(),
+        })
+        self.assertEqual(response.status_code, 403)
+

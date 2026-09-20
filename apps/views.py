@@ -477,21 +477,32 @@ class GradeBookView(LoginRequiredMixin, View):
         if role not in [Role.ADMIN, Role.TEACHER]:
             raise PermissionDenied("Baho qo'yish ruxsati yo'q.")
 
+        student_id = request.POST.get('student')
+        subject_id = request.POST.get('subject')
+        lesson_id = request.POST.get('lesson')
+
+        if role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            if not teacher:
+                raise PermissionDenied("O'qituvchi profili topilmadi.")
+
+            student = Student.objects.filter(pk=student_id).first() if student_id else None
+            subject = Subject.objects.filter(pk=subject_id).first() if subject_id else None
+
+            # Strictly verify teacher assignment before form processing
+            if not student or not subject or not teacher.is_assigned_to_subject_and_class(subject, student.grade_class):
+                raise PermissionDenied("Boshqa o'qituvchining fani yoki sinfiga baho qo'yish taqiqlangan!")
+
+            if lesson_id:
+                lesson = Lesson.objects.filter(pk=lesson_id).first()
+                if not lesson or lesson.teacher_id != teacher.id or lesson.subject_id != subject.id:
+                    raise PermissionDenied("Boshqa o'qituvchining darsiga baho qo'yish taqiqlangan!")
+
         form = GradeForm(request.POST)
         if form.is_valid():
             grade = form.save(commit=False)
             if role == Role.TEACHER:
-                teacher = getattr(request.user, 'teacher_profile', None)
-                if not teacher:
-                    raise PermissionDenied("O'qituvchi profili topilmadi.")
-                grade.teacher = teacher
-
-                student = form.cleaned_data.get('student')
-                subject = form.cleaned_data.get('subject')
-
-                # Strictly verify teacher assignment
-                if not student or not subject or not teacher.is_assigned_to_subject_and_class(subject, student.grade_class):
-                    raise PermissionDenied("Boshqa o'qituvchining fani yoki sinfiga baho qo'yish taqiqlangan!")
+                grade.teacher = request.user.teacher_profile
             elif role == Role.ADMIN:
                 if not grade.teacher_id:
                     teacher = Teacher.objects.filter(subject=grade.subject, assigned_classes=grade.student.grade_class).first() or Teacher.objects.filter(subject=grade.subject).first()
@@ -738,7 +749,10 @@ class HomeworkListView(LoginRequiredMixin, View):
         if form.is_valid():
             hw = form.save(commit=False)
             if role == Role.TEACHER:
-                hw.teacher = getattr(request.user, 'teacher_profile', None)
+                teacher = getattr(request.user, 'teacher_profile', None)
+                if not teacher or not teacher.is_assigned_to_subject_and_class(hw.subject, hw.grade_class):
+                    raise PermissionDenied("Boshqa o'qituvchining fani yoki sinfiga vazifa yaratish taqiqlangan!")
+                hw.teacher = teacher
             hw.save()
             messages.success(request, "Yangi uyga vazifa e'lon qilindi!")
             return redirect('homework_list')
@@ -797,6 +811,11 @@ class ExamResultEntryView(RoleRequiredMixin, View):
 
     def get(self, request, exam_id):
         exam = get_object_or_404(Exam.objects.select_related('grade_class', 'subject'), pk=exam_id)
+        role = get_user_role(request.user)
+        if role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            if not teacher or not teacher.is_assigned_to_subject_and_class(exam.subject, exam.grade_class):
+                raise PermissionDenied("Boshqa o'qituvchining imtihoniga kirish taqiqlangan!")
         return render(request, 'exam_results_entry.html', {
             'exam': exam,
             'students': Student.objects.filter(grade_class=exam.grade_class),
@@ -805,6 +824,11 @@ class ExamResultEntryView(RoleRequiredMixin, View):
 
     def post(self, request, exam_id):
         exam = get_object_or_404(Exam, pk=exam_id)
+        role = get_user_role(request.user)
+        if role == Role.TEACHER:
+            teacher = getattr(request.user, 'teacher_profile', None)
+            if not teacher or not teacher.is_assigned_to_subject_and_class(exam.subject, exam.grade_class):
+                raise PermissionDenied("Boshqa o'qituvchining imtihonini tahrirlash taqiqlangan!")
         for st in Student.objects.filter(grade_class=exam.grade_class):
             mark_val = request.POST.get(f'mark_{st.id}')
             if mark_val:
@@ -902,14 +926,22 @@ class ExportDataView(RoleRequiredMixin, View):
     allowed_roles = [Role.ADMIN, Role.TEACHER]
 
     def get(self, request, model_type):
+        role = get_user_role(request.user)
         if model_type == 'students':
+            students = Student.objects.select_related('grade_class').all()
+            if role == Role.TEACHER:
+                teacher = getattr(request.user, 'teacher_profile', None)
+                if teacher:
+                    students = students.filter(grade_class__in=teacher.assigned_classes.all())
+                else:
+                    students = Student.objects.none()
             return export_queryset_to_csv(
-                Student.objects.select_related('grade_class').all(),
+                students,
                 ['student_id', 'first_name', 'last_name', 'grade_class__name', 'phone', 'status'],
                 ['ID Kodi', 'Ismi', 'Familiyasi', 'Sinfi', 'Telefoni', 'Holati'],
                 'oquvchilar_ruyxati.csv'
             )
-        if model_type == 'fees' and get_user_role(request.user) == Role.ADMIN:
+        if model_type == 'fees' and role == Role.ADMIN:
             return export_queryset_to_csv(
                 StudentFee.objects.select_related('student', 'fee_type').all(),
                 ['student__student_id', 'student__first_name', 'student__last_name', 'fee_type__name', 'amount', 'status', 'due_date'],
@@ -917,8 +949,15 @@ class ExportDataView(RoleRequiredMixin, View):
                 'tolovlar_ruyxati.csv'
             )
         if model_type == 'attendance':
+            attendances = Attendance.objects.select_related('student', 'subject').all()
+            if role == Role.TEACHER:
+                teacher = getattr(request.user, 'teacher_profile', None)
+                if teacher:
+                    attendances = attendances.filter(student__grade_class__in=teacher.assigned_classes.all())
+                else:
+                    attendances = Attendance.objects.none()
             return export_queryset_to_csv(
-                Attendance.objects.select_related('student', 'subject').all()[:500],
+                attendances[:500],
                 ['date', 'student__first_name', 'student__last_name', 'subject__name', 'status'],
                 ['Sana', 'Ismi', 'Familiyasi', 'Fan', 'Holati'],
                 'davomat_yozuvlari.csv'
