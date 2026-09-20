@@ -10,6 +10,8 @@ from .views import (
     TeacherListView, TeacherCreateView, TeacherUpdateView, TeacherDeleteView,
     # Students
     StudentListView, StudentProfileView, StudentCreateView, StudentUpdateView, StudentDeleteView,
+    # Groups / Classes
+    GroupListView, GroupCreateView, GroupUpdateView, GroupDeleteView, GroupStudentAssignView,
     # Subjects
     SubjectListView,
     # Lessons
@@ -55,6 +57,13 @@ urlpatterns = [
     path('students/<int:pk>/', StudentProfileView.as_view(), name='student_profile'),
     path('students/<int:pk>/edit/', StudentUpdateView.as_view(), name='student_update'),
     path('students/<int:pk>/delete/', StudentDeleteView.as_view(), name='student_delete'),
+
+    # ── Guruhlar / Kurslar ────────────────────────────────────
+    path('groups/', GroupListView.as_view(), name='group_list'),
+    path('groups/add/', GroupCreateView.as_view(), name='group_create'),
+    path('groups/<int:pk>/edit/', GroupUpdateView.as_view(), name='group_update'),
+    path('groups/<int:pk>/delete/', GroupDeleteView.as_view(), name='group_delete'),
+    path('groups/<int:pk>/assign-student/', GroupStudentAssignView.as_view(), name='group_student_assign'),
 
     # ── Fanlar ────────────────────────────────────────────────
     path('subjects/', SubjectListView.as_view(), name='subject_list'),

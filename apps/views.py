@@ -1,4 +1,5 @@
 import datetime
+import random
 import logging
 from django.views import View
 from django.shortcuts import render, redirect, get_object_or_404
@@ -214,16 +215,20 @@ class HomeView(LoginRequiredMixin, View):
             return render(request, 'home.html', context)
 
         # 3. ADMIN DASHBOARD
+        active_students = Student.objects.filter(status='ACTIVE').count()
+        debtors = StudentFee.objects.filter(status__in=['PENDING', 'PARTIAL', 'OVERDUE']).select_related('student', 'fee_type')[:10]
         context.update({
             'total_students': Student.objects.count(),
+            'active_students': active_students,
             'total_teachers': Teacher.objects.count(),
             'total_classes': GradeClass.objects.count(),
             'total_subjects': Subject.objects.count(),
             'total_lessons': Lesson.objects.count(),
             'total_grades': Grade.objects.count(),
-            'today_timetables': Timetable.objects.filter(day_of_week=today.isoweekday()).select_related('grade_class', 'subject', 'teacher')[:6],
+            'today_timetables': Timetable.objects.filter(day_of_week=today.isoweekday()).select_related('grade_class', 'subject', 'teacher')[:8],
             'recent_grades': Grade.objects.select_related('student', 'subject', 'teacher').all()[:8],
             'monthly_revenue': PaymentRecord.objects.filter(payment_date__month=today.month).aggregate(total=Sum('paid_amount'))['total'] or 0,
+            'debtor_students': debtors,
         })
         return render(request, 'home.html', context)
 
@@ -256,8 +261,32 @@ class TeacherCreateView(RoleRequiredMixin, View):
     def post(self, request):
         form = TeacherForm(request.POST)
         if form.is_valid():
-            teacher = form.save()
-            messages.success(request, f"O'qituvchi {teacher.first_name} {teacher.last_name} muvaffaqiyatli qo'shildi!")
+            teacher = form.save(commit=False)
+            created_user_msg = ""
+            if not teacher.user:
+                clean_name = (teacher.first_name or 'teacher').lower().replace(' ', '')
+                username = form.cleaned_data.get('username') or f"t_{clean_name}"
+                password = form.cleaned_data.get('password') or "teacher123"
+
+                base_username = username
+                idx = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{idx}"
+                    idx += 1
+
+                user = User.objects.create_user(
+                    username=username,
+                    password=password,
+                    first_name=teacher.first_name,
+                    last_name=teacher.last_name
+                )
+                UserProfile.objects.create(user=user, role=Role.TEACHER, phone=teacher.phone)
+                teacher.user = user
+                created_user_msg = f" Kirish ma'lumotlari: Username: {username} | Parol: {password}"
+
+            teacher.save()
+            form.save_m2m()
+            messages.success(request, f"O'qituvchi {teacher.first_name} {teacher.last_name} muvaffaqiyatli qo'shildi!{created_user_msg}")
             return redirect('teacher_list')
         messages.error(request, "O'qituvchini qo'shishda xatolik!")
         return redirect('teacher_list')
@@ -294,6 +323,90 @@ class TeacherDeleteView(RoleRequiredMixin, View):
         return redirect('teacher_list')
 
 
+# ── Guruhlar (Sinflar / Kurslar) Boshqaruvi ───────────────────
+
+class GroupListView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN, Role.TEACHER]
+
+    def get(self, request):
+        search_query = request.GET.get('q', '').strip()
+        groups = GradeClass.objects.select_related('class_teacher').annotate(
+            student_count=Count('students', distinct=True)
+        ).prefetch_related('timetables__subject', 'timetables__teacher').all()
+
+        if search_query:
+            groups = groups.filter(Q(name__icontains=search_query) | Q(class_teacher__first_name__icontains=search_query))
+
+        page_obj = Paginator(groups, 15).get_page(request.GET.get('page'))
+        return render(request, 'groups.html', {
+            'page_obj': page_obj,
+            'groups': page_obj.object_list,
+            'form': GradeClassForm(),
+            'teachers': Teacher.objects.all(),
+            'unassigned_students': Student.objects.filter(grade_class__isnull=True),
+            'search_query': search_query,
+        })
+
+
+class GroupCreateView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN]
+
+    def post(self, request):
+        form = GradeClassForm(request.POST)
+        if form.is_valid():
+            group = form.save()
+            messages.success(request, f"Guruh/Kurs '{group.name}' muvaffaqiyatli yaratildi!")
+        else:
+            messages.error(request, "Guruh yaratishda xatolik yuz berdi!")
+        return redirect('group_list')
+
+
+class GroupUpdateView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN]
+
+    def post(self, request, pk):
+        group = get_object_or_404(GradeClass, pk=pk)
+        form = GradeClassForm(request.POST, instance=group)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Guruh '{group.name}' yangilandi!")
+        else:
+            messages.error(request, "Guruhni yangilashda xatolik!")
+        return redirect('group_list')
+
+
+class GroupDeleteView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN]
+
+    def post(self, request, pk):
+        group = get_object_or_404(GradeClass, pk=pk)
+        name = group.name
+        group.delete()
+        messages.success(request, f"Guruh '{name}' o'chirildi.")
+        return redirect('group_list')
+
+
+class GroupStudentAssignView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN]
+
+    def post(self, request, pk):
+        group = get_object_or_404(GradeClass, pk=pk)
+        student_id = request.POST.get('student_id')
+        action = request.POST.get('action', 'add')
+
+        student = get_object_or_404(Student, pk=student_id)
+        if action == 'add':
+            student.grade_class = group
+            student.save()
+            messages.success(request, f"{student.first_name} {student.last_name} '{group.name}' guruhiga biriktirildi!")
+        elif action == 'remove':
+            student.grade_class = None
+            student.save()
+            messages.success(request, f"{student.first_name} {student.last_name} '{group.name}' guruhidan chiqarildi!")
+
+        return redirect('group_list')
+
+
 # ── O'quvchilar Boshqaruvi ───────────────────────────────────
 
 class StudentListView(RoleRequiredMixin, View):
@@ -302,9 +415,10 @@ class StudentListView(RoleRequiredMixin, View):
     def get(self, request):
         role = get_user_role(request.user)
         class_id = request.GET.get('class_id')
+        status = request.GET.get('status')
         search_query = request.GET.get('q', '').strip()
 
-        students = Student.objects.select_related('grade_class').all()
+        students = Student.objects.select_related('grade_class', 'user').all()
 
         if role == Role.TEACHER:
             teacher = getattr(request.user, 'teacher_profile', None)
@@ -314,10 +428,13 @@ class StudentListView(RoleRequiredMixin, View):
 
         if class_id:
             students = students.filter(grade_class_id=class_id)
+        if status:
+            students = students.filter(status=status)
         if search_query:
             students = students.filter(
                 Q(first_name__icontains=search_query) | Q(last_name__icontains=search_query) |
-                Q(student_id__icontains=search_query) | Q(phone__icontains=search_query)
+                Q(student_id__icontains=search_query) | Q(phone__icontains=search_query) |
+                Q(user__username__icontains=search_query)
             )
 
         page_obj = Paginator(students, 15).get_page(request.GET.get('page'))
@@ -325,7 +442,9 @@ class StudentListView(RoleRequiredMixin, View):
             'page_obj': page_obj,
             'students': page_obj.object_list,
             'classes': GradeClass.objects.all(),
+            'statuses': Student.STATUS_CHOICES,
             'selected_class': class_id,
+            'selected_status': status,
             'search_query': search_query,
         })
 
@@ -372,8 +491,31 @@ class StudentCreateView(RoleRequiredMixin, View):
     def post(self, request):
         form = StudentForm(request.POST, request.FILES)
         if form.is_valid():
-            student = form.save()
-            messages.success(request, f"O'quvchi {student.first_name} {student.last_name} qo'shildi!")
+            student = form.save(commit=False)
+            created_user_msg = ""
+            if not student.user:
+                clean_name = (student.first_name or 'student').lower().replace(' ', '')
+                username = form.cleaned_data.get('username') or f"s_{clean_name}"
+                password = form.cleaned_data.get('password') or f"stu{random.randint(1000, 9999)}"
+
+                base_username = username
+                idx = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{idx}"
+                    idx += 1
+
+                user = User.objects.create_user(
+                    username=username,
+                    password=password,
+                    first_name=student.first_name,
+                    last_name=student.last_name
+                )
+                UserProfile.objects.create(user=user, role=Role.STUDENT, phone=student.phone)
+                student.user = user
+                created_user_msg = f" Tizimga kirish ma'lumotlari: Username: {username} | Parol: {password}"
+
+            student.save()
+            messages.success(request, f"O'quvchi {student.first_name} {student.last_name} muvaffaqiyatli qo'shildi!{created_user_msg}")
             return redirect('student_profile', pk=student.pk)
         return render(request, 'student_form.html', {'form': form})
 

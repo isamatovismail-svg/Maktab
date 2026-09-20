@@ -451,16 +451,22 @@
 
             {% if is_admin %}
                 <li class="nav-section-label">Admin Boshqaruvi</li>
+                <li class="nav-item {% if 'student' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'student_list' %}">
+                        <i class="fa-solid fa-user-graduate"></i>
+                        <span>O'quvchilar</span>
+                    </a>
+                </li>
                 <li class="nav-item {% if 'teacher' in request.resolver_match.url_name %}active{% endif %}">
                     <a href="{% url 'teacher_list' %}">
                         <i class="fa-solid fa-chalkboard-user"></i>
                         <span>O'qituvchilar</span>
                     </a>
                 </li>
-                <li class="nav-item {% if 'student' in request.resolver_match.url_name %}active{% endif %}">
-                    <a href="{% url 'student_list' %}">
-                        <i class="fa-solid fa-user-graduate"></i>
-                        <span>O'quvchilar</span>
+                <li class="nav-item {% if 'group' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'group_list' %}">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span>Guruhlar</span>
                     </a>
                 </li>
                 <li class="nav-item {% if 'subject' in request.resolver_match.url_name %}active{% endif %}">
@@ -475,16 +481,46 @@
                         <span>Darslar</span>
                     </a>
                 </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'gradebook' %}active{% endif %}">
-                    <a href="{% url 'gradebook' %}">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                        <span>Baholar Jurnali</span>
-                    </a>
-                </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'timetable' %}active{% endif %}">
                     <a href="{% url 'timetable' %}">
                         <i class="fa-solid fa-calendar-days"></i>
-                        <span>Dars Jadvali</span>
+                        <span>Jadval</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'attendance' %}active{% endif %}">
+                    <a href="{% url 'attendance' %}">
+                        <i class="fa-solid fa-clipboard-user"></i>
+                        <span>Davomat</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'gradebook' %}active{% endif %}">
+                    <a href="{% url 'gradebook' %}">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span>Baholar</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'homework_list' %}active{% endif %}">
+                    <a href="{% url 'homework_list' %}">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Topshiriqlar</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if 'quiz' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'quiz_list' %}">
+                        <i class="fa-solid fa-brain"></i>
+                        <span>Testlar</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if 'fee' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'fee_list' %}">
+                        <i class="fa-solid fa-wallet"></i>
+                        <span>To'lovlar</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/" target="_blank">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>Sozlamalar</span>
                     </a>
                 </li>
             {% elif is_teacher %}

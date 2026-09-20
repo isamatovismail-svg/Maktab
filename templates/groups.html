@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Guruhlar Boshqaruvi - Smart Maktab{% endblock %}
+{% block header_title %}Guruhlar va Kurslar Boshqaruvi{% endblock %}
+{% block header_subtitle %}Maktabdagi barcha o'quv guruhlari va sinflarni boshqarish{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <form method="get" class="d-flex gap-2 flex-grow-1 max-w-500">
+            <input type="text" name="q" class="form-control" placeholder="Guruh nomi yoki o'qituvchi bo'yicha qidirish..." value="{{ search_query }}">
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass me-1"></i> Qidirish</button>
+            {% if search_query %}
+            <a href="{% url 'group_list' %}" class="btn btn-secondary"><i class="fa-solid fa-xmark"></i></a>
+            {% endif %}
+        </form>
+
+        {% if is_admin %}
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addGroupModal">
+            <i class="fa-solid fa-plus me-1"></i> Yangi Guruh Qo'shish
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="row g-4">
+        {% for group in groups %}
+        <div class="col-xl-4 col-md-6">
+            <div class="glass-card p-4 h-100 d-flex flex-column justify-content-between position-relative">
+                <div>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="group-icon-circle">
+                                <i class="fa-solid fa-users-gear text-primary fs-3"></i>
+                            </div>
+                            <div>
+                                <h4 class="mb-1 text-main fw-bold">{{ group.name }}</h4>
+                                <span class="badge badge-primary">
+                                    <i class="fa-solid fa-user-graduate me-1"></i> {{ group.student_count }} ta o'quvchi
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="group-info-box p-3 mb-3 border-glass rounded-3">
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Sinf rahbari / Biriktirilgan o'qituvchi:</small>
+                            <span class="fw-semibold text-main">
+                                {% if group.class_teacher %}
+                                    <i class="fa-solid fa-user-tie text-info me-1"></i> {{ group.class_teacher.get_full_name|default:group.class_teacher.username }}
+                                {% else %}
+                                    <span class="text-muted fs-7">O'qituvchi biriktirilmagan</span>
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        <div>
+                            <small class="text-muted d-block">Dars jadvallari:</small>
+                            {% if group.timetables.all %}
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    {% for tt in group.timetables.all|slice:":3" %}
+                                    <span class="badge bg-dark border-glass text-light fs-8">
+                                        {{ tt.get_day_of_week_display }}: {{ tt.subject.name }} ({{ tt.room|default:"Xonasiz" }})
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <small class="text-muted">Jadval hali kiritilmagan</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if is_admin %}
+                <div class="d-flex gap-2 mt-3 pt-3 border-top border-glass">
+                    <button class="btn btn-sm btn-outline-info flex-grow-1" data-bs-toggle="modal" data-bs-target="#editGroupModal{{ group.pk }}">
+                        <i class="fa-solid fa-pen me-1"></i> Tahrirlash
+                    </button>
+                    <button class="btn btn-sm btn-outline-success flex-grow-1" data-bs-toggle="modal" data-bs-target="#assignStudentModal{{ group.pk }}">
+                        <i class="fa-solid fa-user-plus me-1"></i> O'quvchi Qo'shish
+                    </button>
+                    <form method="post" action="{% url 'group_delete' group.pk %}" onsubmit="return confirm('Haqiqatdan ham {{ group.name }} guruhini o\'chirmoqchimisiz?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Edit Group Modal -->
+        <div class="modal fade" id="editGroupModal{{ group.pk }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content glass-card p-3">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title text-main fw-bold">Guruhni Tahrirlash</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="post" action="{% url 'group_update' group.pk %}">
+                        {% csrf_token %}
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Guruh/Kurs nomi</label>
+                                <input type="text" name="name" class="form-control" value="{{ group.name }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">O'qituvchi / Sinf rahbari</label>
+                                <select name="class_teacher" class="form-select">
+                                    <option value="">-- O'qituvchisiz --</option>
+                                    {% for t in teachers %}
+                                    <option value="{{ t.user.pk }}" {% if group.class_teacher_id == t.user.pk %}selected{% endif %}>
+                                        {{ t.first_name }} {{ t.last_name }} ({{ t.subject.name|default:"Fansiz" }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                            <button type="submit" class="btn btn-primary">Saqlash</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assign Student Modal -->
+        <div class="modal fade" id="assignStudentModal{{ group.pk }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content glass-card p-3">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title text-main fw-bold">'{{ group.name }}' Guruhiga O'quvchilar Boshqaruvi</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h6 class="text-main mb-3">Mavjud O'quvchilar Ro'yxati:</h6>
+                        <div class="table-responsive max-h-300 mb-4">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>O'quvchi</th>
+                                        <th>Telefon</th>
+                                        <th>Amal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for st in group.students.all %}
+                                    <tr>
+                                        <td class="fw-semibold">{{ st.first_name }} {{ st.last_name }}</td>
+                                        <td>{{ st.phone|default:"--" }}</td>
+                                        <td>
+                                            <form method="post" action="{% url 'group_student_assign' group.pk %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="student_id" value="{{ st.pk }}">
+                                                <input type="hidden" name="action" value="remove">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Guruhdan chiqarish</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">Guruhda hali o'quvchilar yo'q</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h6 class="text-main mb-3">Guruhsiz (Ajratilmagan) O'quvchini Qo'shish:</h6>
+                        <form method="post" action="{% url 'group_student_assign' group.pk %}" class="d-flex gap-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="add">
+                            <select name="student_id" class="form-select" required>
+                                <option value="">-- O'quvchini tanlang --</option>
+                                {% for st in unassigned_students %}
+                                <option value="{{ st.pk }}">{{ st.first_name }} {{ st.last_name }} ({{ st.phone|default:"Telefonsiz" }})</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-success"><i class="fa-solid fa-plus"></i> Qo'shish</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <i class="fa-solid fa-users-slash text-muted fs-1 mb-3"></i>
+            <h5 class="text-muted">Guruhlar topilmadi</h5>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Add Group Modal -->
+<div class="modal fade" id="addGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card p-3">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-main fw-bold">Yangi Guruh / Kurs Yaratish</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'group_create' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Guruh / Kurs nomi</label>
+                        <input type="text" name="name" class="form-control" placeholder="Masalan: English Beginner A" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">O'qituvchi / Sinf rahbari (ixtiyoriy)</label>
+                        <select name="class_teacher" class="form-select">
+                            <option value="">-- O'qituvchini tanlang --</option>
+                            {% for t in teachers %}
+                            <option value="{{ t.user.pk }}">{{ t.first_name }} {{ t.last_name }} ({{ t.subject.name|default:"Fansiz" }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                    <button type="submit" class="btn btn-primary">Yaratish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

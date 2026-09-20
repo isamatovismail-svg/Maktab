@@ -215,3 +215,51 @@ class RoleAuthorizationSecurityTests(TestCase):
         })
         self.assertEqual(response.status_code, 403)
 
+    # Test 16: Admin can create group and assign student to group
+    def test_16_admin_can_create_group_and_assign_student(self):
+        self.client.login(username='admin_user', password='password123')
+        # 1. Create Group
+        response = self.client.post(reverse('group_create'), {'name': 'English Beginner A'})
+        self.assertEqual(response.status_code, 302)
+        group = GradeClass.objects.get(name='English Beginner A')
+        self.assertIsNotNone(group)
+
+        # 2. Assign Student to Group
+        response = self.client.post(reverse('group_student_assign', kwargs={'pk': group.pk}), {
+            'student_id': self.student_ali.pk,
+            'action': 'add'
+        })
+        self.assertEqual(response.status_code, 302)
+        self.student_ali.refresh_from_db()
+        self.assertEqual(self.student_ali.grade_class, group)
+
+    # Test 17: Admin student create automatically generates Django User account
+    def test_17_admin_student_create_auto_generates_user_account(self):
+        self.client.login(username='admin_user', password='password123')
+        response = self.client.post(reverse('student_create'), {
+            'first_name': 'Hasan',
+            'last_name': 'Husanov',
+            'gender': 'M',
+            'status': 'ACTIVE',
+            'phone': '+998901234567',
+        })
+        self.assertEqual(response.status_code, 302)
+        hasan = Student.objects.get(first_name='Hasan', last_name='Husanov')
+        self.assertIsNotNone(hasan.user)
+        self.assertEqual(hasan.user.profile.role, Role.STUDENT)
+
+    # Test 18: Admin teacher create automatically generates Django User account
+    def test_18_admin_teacher_create_auto_generates_user_account(self):
+        self.client.login(username='admin_user', password='password123')
+        response = self.client.post(reverse('teacher_create'), {
+            'first_name': 'Jasur',
+            'last_name': 'Botirov',
+            'phone': '+998909998877',
+            'qualification': 'Oliy',
+        })
+        self.assertEqual(response.status_code, 302)
+        jasur = Teacher.objects.get(first_name='Jasur', last_name='Botirov')
+        self.assertIsNotNone(jasur.user)
+        self.assertEqual(jasur.user.profile.role, Role.TEACHER)
+
+

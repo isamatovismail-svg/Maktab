@@ -24,6 +24,9 @@ def fs():
 # ── Formalar ──────────────────────────────────────────────────
 
 class StudentForm(forms.ModelForm):
+    username = forms.CharField(required=False, label="Username", widget=forms.TextInput(attrs=fc('Login / Username (ixtiyoriy)')))
+    password = forms.CharField(required=False, label="Parol", widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Parol (ixtiyoriy)', 'autocomplete': 'new-password'}))
+
     class Meta:
         model = Student
         fields = [
@@ -64,12 +67,15 @@ class GradeClassForm(forms.ModelForm):
         model = GradeClass
         fields = ['name', 'class_teacher']
         widgets = {
-            'name': forms.TextInput(attrs=fc('9-A')),
+            'name': forms.TextInput(attrs=fc('English Beginner A')),
             'class_teacher': forms.Select(attrs=fs()),
         }
 
 
 class TeacherForm(forms.ModelForm):
+    username = forms.CharField(required=False, label="Username", widget=forms.TextInput(attrs=fc('Login / Username (ixtiyoriy)')))
+    password = forms.CharField(required=False, label="Parol", widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Parol (ixtiyoriy)', 'autocomplete': 'new-password'}))
+
     class Meta:
         model = Teacher
         fields = ['first_name', 'last_name', 'subject', 'assigned_subjects', 'assigned_classes', 'phone', 'qualification', 'bio']
@@ -83,6 +89,7 @@ class TeacherForm(forms.ModelForm):
             'qualification': forms.TextInput(attrs=fc('Oliy toifali')),
             'bio': forms.Textarea(attrs=fc('Qisqacha bio...', rows=3)),
         }
+
 
 
 class LessonForm(forms.ModelForm):
