@@ -505,18 +505,6 @@
                         <span>Topshiriqlar</span>
                     </a>
                 </li>
-                <li class="nav-item {% if 'quiz' in request.resolver_match.url_name %}active{% endif %}">
-                    <a href="{% url 'quiz_list' %}">
-                        <i class="fa-solid fa-brain"></i>
-                        <span>Testlar</span>
-                    </a>
-                </li>
-                <li class="nav-item {% if 'fee' in request.resolver_match.url_name %}active{% endif %}">
-                    <a href="{% url 'fee_list' %}">
-                        <i class="fa-solid fa-wallet"></i>
-                        <span>To'lovlar</span>
-                    </a>
-                </li>
                 <li class="nav-item">
                     <a href="/admin/" target="_blank">
                         <i class="fa-solid fa-sliders"></i>
@@ -591,18 +579,6 @@
                     <a href="{% url 'timetable' %}">
                         <i class="fa-solid fa-calendar-days"></i>
                         <span>Dars Jadvali</span>
-                    </a>
-                </li>
-                <li class="nav-item {% if 'quiz' in request.resolver_match.url_name %}active{% endif %}">
-                    <a href="{% url 'quiz_list' %}">
-                        <i class="fa-solid fa-brain"></i>
-                        <span>Onlayn Testlar</span>
-                    </a>
-                </li>
-                <li class="nav-item {% if 'fee' in request.resolver_match.url_name %}active{% endif %}">
-                    <a href="{% url 'fee_list' %}">
-                        <i class="fa-solid fa-wallet"></i>
-                        <span>To'lovlarim</span>
                     </a>
                 </li>
             {% endif %}

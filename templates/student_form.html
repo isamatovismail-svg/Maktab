@@ -4,38 +4,50 @@
 {% block header_title %}O'quvchi Saqlash Formasi{% endblock %}
 
 {% block content %}
-<div class="glass-card" style="max-width: 550px; margin: 20px auto;">
-    <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 20px;">O'quvchi Ma'lumotlarini Kiritish</h3>
-    <form method="POST">
+<div class="glass-card" style="max-width: 600px; margin: 20px auto; padding: 28px;">
+    <h3 class="mb-4 text-main fw-bold" style="font-size: 20px;"><i class="fa-solid fa-user-graduate text-primary me-2"></i>O'quvchi Saqlash Formasi</h3>
+    <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
-        <div class="form-group">
-            <label>Ismi:</label>
-            {{ form.first_name }}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label text-muted fw-semibold">Ismi:</label>
+                {{ form.first_name }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted fw-semibold">Familiyasi:</label>
+                {{ form.last_name }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted fw-semibold">Username / Login:</label>
+                {{ form.username }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted fw-semibold">Parol:</label>
+                {{ form.password }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted fw-semibold">Guruh / Sinf:</label>
+                {{ form.grade_class }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted fw-semibold">Holati (Status):</label>
+                {{ form.status }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted fw-semibold">O'quvchi Telefoni:</label>
+                {{ form.phone }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted fw-semibold">Ota-onasi Telefoni:</label>
+                {{ form.parent_phone }}
+            </div>
         </div>
-        <div class="form-group">
-            <label>Familiyasi:</label>
-            {{ form.last_name }}
-        </div>
-        <div class="form-group">
-            <label>Sinfi:</label>
-            {{ form.grade_class }}
-        </div>
-        <div class="form-group">
-            <label>Telefon Raqami:</label>
-            {{ form.phone }}
-        </div>
-        <div class="form-group">
-            <label>Ota-onasi Telefon Raqami (Telegram xabarnomalar uchun):</label>
-            {{ form.parent_phone }}
-        </div>
-        <div class="form-group">
-            <label>Telegram Chat ID:</label>
-            {{ form.telegram_id }}
-        </div>
-        <div style="display: flex; gap: 12px; margin-top: 24px;">
-            <button type="submit" class="btn-primary" style="flex: 1; justify-content: center;">Saqlash</button>
-            <a href="{% url 'student_list' %}" class="btn-secondary">Orqaga</a>
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary flex-grow-1"><i class="fa-solid fa-floppy-disk me-1"></i> O'quvchini Saqlash</button>
+            <a href="{% url 'student_list' %}" class="btn btn-secondary">Orqaga</a>
         </div>
     </form>
 </div>
+
 {% endblock %}

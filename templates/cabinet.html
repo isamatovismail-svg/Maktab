@@ -70,12 +70,6 @@
                 <div class="stat-pill-val">{{ att_percentage|floatformat:1|default:"0.0" }}%</div>
                 <div class="stat-pill-lbl">Davomat</div>
             </div>
-            <div class="stat-pill" style="{% if total_debt > 0 %}border-color: var(--accent-rose); background: rgba(244,63,94,0.1);{% endif %}">
-                <div class="stat-pill-val {% if total_debt > 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ total_debt|floatformat:0 }}
-                </div>
-                <div class="stat-pill-lbl">Qarz (UZS)</div>
-            </div>
         </div>
     </div>
 </div>
@@ -312,103 +306,7 @@
         <div class="empty-state">Hali topshiriqlar yuklanmagan.</div>
     {% endif %}
 </div>
+{% endblock %}
 
-<!-- Test Natijalari -->
-<div class="glass-card mb-4" style="padding: 20px;">
-    <h4 class="mb-4" style="font-size: 18px; font-weight: 600;"><i class="fas fa-clipboard-check me-2 text-primary"></i>Test Natijalari</h4>
-    {% if quiz_results %}
-        <div class="table-responsive">
-            <table class="table modern-table mb-0">
-                <thead>
-                    <tr>
-                        <th>Test Nomi</th>
-                        <th>Fan</th>
-                        <th>Natija</th>
-                        <th>Foiz</th>
-                        <th>Sana</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for qz in quiz_results %}
-                    <tr>
-                        <td style="font-weight: 500;">{{ qz.quiz.title }}</td>
-                        <td class="text-muted">{{ qz.quiz.subject.name }}</td>
-                        <td>{{ qz.score }} / {{ qz.total_questions }}</td>
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <span style="font-weight: 600; font-size: 14px;">{{ qz.percentage|floatformat:1 }}%</span>
-                                <div class="progress-bar-bg" style="width: 60px; height: 6px;">
-                                    <div class="progress-bar-fill" style="width: {{ qz.percentage|default:0 }}%;"></div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="text-muted">{{ qz.completed_at|date:"d.m.Y H:i" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <div class="empty-state">Hali test ishlanmagan.</div>
-    {% endif %}
-</div>
-
-<!-- To'lovlar -->
-<div class="glass-card mb-4" style="padding: 20px;">
-    <h4 class="mb-4" style="font-size: 18px; font-weight: 600;"><i class="fas fa-wallet me-2 text-success"></i>To'lovlar va Qarzlar</h4>
-    
-    {% if total_debt > 0 %}
-    <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px;">
-        <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239,68,68,0.2); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 24px;">
-            <i class="fas fa-exclamation-triangle"></i>
-        </div>
-        <div>
-            <div style="color: #ef4444; font-weight: 700; font-size: 16px;">Diqqat, qarzdorlik mavjud!</div>
-            <div class="text-muted" style="font-size: 14px;">Iltimos, o'z vaqtida to'lovni amalga oshiring. Umumiy qarz: <strong>{{ total_debt|floatformat:0 }} UZS</strong></div>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if fees %}
-        <div class="table-responsive">
-            <table class="table modern-table mb-0">
-                <thead>
-                    <tr>
-                        <th>To'lov Turi</th>
-                        <th>Summa</th>
-                        <th>Chegirma</th>
-                        <th>To'lash kerak</th>
-                        <th>Holati</th>
-                        <th>Muddat</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for fee in fees %}
-                    <tr>
-                        <td style="font-weight: 500;">{{ fee.fee_type.name }}</td>
-                        <td>{{ fee.amount|floatformat:0 }}</td>
-                        <td class="text-muted">{{ fee.discount_amount|floatformat:0 }}</td>
-                        <td style="font-weight: 600;">{{ fee.net_amount|floatformat:0 }}</td>
-                        <td>
-                            {% if fee.status == 'PAID' %}
-                                <span class="badge badge-success">To'langan</span>
-                            {% elif fee.status == 'PARTIAL' %}
-                                <span class="badge badge-warning">Qisman</span>
-                            {% elif fee.status == 'OVERDUE' %}
-                                <span class="badge badge-danger">Kechikkan</span>
-                            {% else %}
-                                <span class="badge badge-primary">Kutilmoqda</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-muted">{{ fee.due_date|date:"d.m.Y" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <div class="empty-state">To'lov ma'lumotlari yo'q.</div>
-    {% endif %}
-</div>
 
 {% endblock %}
