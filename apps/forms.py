@@ -2,8 +2,8 @@ from django import forms
 from django.contrib.auth.models import User
 from .models import (
     Student, Teacher, Subject, GradeClass, Homework,
-    HomeworkSubmission, Grade, Lesson, Quiz, Question, Timetable, FeeType,
-    StudentFee, PaymentRecord, Exam, ExamResult, Announcement
+    HomeworkSubmission, Grade, Lesson, Timetable, FeeType,
+    StudentFee, PaymentRecord, Exam, Announcement
 )
 
 # ── Yordamchi funksiyalar ─────────────────────────────────────

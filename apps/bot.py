@@ -1,13 +1,12 @@
 import logging
 import datetime
 from asgiref.sync import sync_to_async
-from django.conf import settings
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
+    ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 )
 
-from apps.models import Student, Grade, Timetable, Attendance, Homework, Quiz, Question, QuizResult, StudentFee
+from apps.models import Student, Grade, Timetable, Attendance, Homework, Quiz, QuizResult, StudentFee
 
 logging.basicConfig(level=logging.INFO)
 
@@ -77,7 +76,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📅 /jadval — Bugungi dars jadvalingiz\n"
             "📋 /yoqlama — Davomat ko'rsatgichingiz\n"
             "📚 /vazifa — Uyga vazifalaringiz\n"
-            "🧠 /test — Test topshirish (Bilim)"
+            "🧠 /test — Test topshirish (Bilim)\n"
+            "💳 /tolov — To'lovlar holati\n"
+            "👤 /profil — Profil ma'lumotlaringiz\n"
+            "⏭ /keyingidars — Keyingi darsiz"
         )
     else:
         text = (
@@ -182,9 +184,6 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         res += f"• {icon} **{q.title}** ({sub_name})\n"
         res += f"  ⏱ Vaqt: {q.time_limit_minutes} daqiqa\n\n"
 
-    site_url = getattr(settings, 'SITE_URL', 'http://127.0.0.1:8080')
-    res += f"💡 Testlarni onlayn yechish uchun saytga kiring:\n{site_url}/quizzes/"
-
     await update.message.reply_text(res, parse_mode='Markdown')
 
 
@@ -193,7 +192,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg_id = update.effective_user.id
     st = await get_student_by_telegram_id(tg_id)
     if st:
-        await update.message.reply_text("💡 Buyruqlar ro'yxatini ko'rish uchun menyudan foydalaning: /baholar, /jadval, /yoqlama, /vazifa, /test")
+        await update.message.reply_text("💡 Buyruqlar ro'yxatini ko'rish uchun menyudan foydalaning: /baholar, /jadval, /yoqlama, /vazifa, /test, /tolov, /profil, /keyingidars")
         return
 
     text = update.message.text.strip()
@@ -282,11 +281,7 @@ async def keyingidars_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("⚠️ Avval /start orqali akkauntingizni bog'lang.")
         return
 
-    result = await get_next_lesson(student)
-    if isinstance(result, tuple):
-        lesson, day_num = result
-    else:
-        lesson, day_num = None, None
+    lesson, day_num = await get_next_lesson(student)
 
     if not lesson:
         await update.message.reply_text("📅 Keyingi dars topilmadi.")

@@ -2,6 +2,7 @@ import datetime
 import random
 import logging
 from django.views import View
+from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -39,9 +40,7 @@ class CabinetView(LoginRequiredMixin, View):
         today = datetime.date.today()
 
         # Admin va Teacher uchun — ularning dashboard'iga yo'naltirish
-        if role == Role.ADMIN:
-            return redirect('home')
-        if role == Role.TEACHER:
+        if role in (Role.ADMIN, Role.TEACHER):
             return redirect('home')
 
         # O'quvchi uchun — shaxsiy kabinet
@@ -734,7 +733,9 @@ class GradeBookView(LoginRequiredMixin, View):
 
             except ValidationError as e:
                 messages.error(request, f"Xatolik: {e.messages[0] if hasattr(e, 'messages') else e}")
-            return redirect(f'/grades/?class_id={grade.student.grade_class_id}&subject_id={grade.subject.id}')
+            return redirect(
+                    f"{reverse('gradebook')}?class_id={grade.student.grade_class_id}&subject_id={grade.subject.id}"
+                )
         
         messages.error(request, "Baho kiritishda formada xatolik yuz berdi!")
         return redirect('gradebook')
@@ -800,7 +801,9 @@ class AttendanceView(LoginRequiredMixin, View):
                     defaults={'status': request.POST.get(f'status_{s.id}', 'B')}
                 )
             messages.success(request, "Davomat muvaffaqiyatli saqlandi!")
-        return redirect(f'/attendance/?class_id={class_id}&subject_id={subject_id}&date={date_str}')
+        return redirect(
+            f"{reverse('attendance')}?class_id={class_id}&subject_id={subject_id}&date={date_str}"
+        )
 
 
 # ── Dars Jadvali ──────────────────────────────────────────────
