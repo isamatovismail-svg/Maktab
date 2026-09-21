@@ -1,244 +1,265 @@
+"""
+pytest testlari — ishga tushirish:
+
+    pytest
+    pytest apps/tests.py -v
+    pytest apps/tests.py -k login -v
+    pytest --cov=apps --cov-report=term-missing
+"""
 import datetime
-from django.test import TestCase, Client
-from django.contrib.auth.models import User
+
+import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 
-from apps.models import UserProfile, Teacher, Student, GradeClass, Subject, Lesson, Grade
-from apps.permissions import Role
+from apps.models import (
+    Student, Grade, StudentFee, PaymentRecord, Exam, ExamResult, QuizResult,
+)
+from apps.permissions import Role, get_user_role
 
 
-class MaktabSystemTests(TestCase):
-    """
-    Tizimning eng muhim 10 ta testi.
-    Xavfsizlik, ruxsatlar va asosiy funksiyalar tekshiriladi.
-    """
+# ═══════════════════════════════════════════════════════════════
+# 1. MODELLAR
+# ═══════════════════════════════════════════════════════════════
 
-    def setUp(self):
-        """Har bir test uchun umumiy test ma'lumotlari yaratiladi."""
-        self.client = Client()
+@pytest.mark.django_db
+def test_student_str_and_auto_id(school):
+    assert str(school.student_ali).startswith('Ali Karimov')
+    assert school.student_ali.student_id
+    assert school.student_ali.student_id.startswith('STU-')
 
-        # Admin
-        self.admin_user = User.objects.create_superuser(
-            username='admin_user', password='password123', email='admin@school.uz'
-        )
-        UserProfile.objects.create(user=self.admin_user, role=Role.ADMIN)
 
-        # Fanlar
-        self.math = Subject.objects.create(name='Matematika', code='MATH101')
-        self.english = Subject.objects.create(name='Ingliz tili', code='ENG101')
+@pytest.mark.django_db
+def test_grade_rejects_out_of_range_score(school):
+    grade = Grade(
+        student=school.student_ali,
+        teacher=school.teacher_a,
+        subject=school.math,
+        score=101,
+        date=datetime.date.today(),
+    )
+    with pytest.raises(ValidationError):
+        grade.save()
 
-        # Sinflar
-        self.class_7a = GradeClass.objects.create(name='7-A')
-        self.class_7b = GradeClass.objects.create(name='7-B')
 
-        # O'qituvchi A — Matematika, 7-A sinfi
-        self.teacher_a_user = User.objects.create_user(
-            username='teacher_a', password='password123', first_name='Teacher', last_name='A'
-        )
-        UserProfile.objects.create(user=self.teacher_a_user, role=Role.TEACHER)
-        self.teacher_a = Teacher.objects.create(
-            user=self.teacher_a_user, first_name='Teacher', last_name='A',
-            subject=self.math, phone='+998901'
-        )
-        self.teacher_a.assigned_subjects.add(self.math)
-        self.teacher_a.assigned_classes.add(self.class_7a)
+@pytest.mark.django_db
+def test_grade_rejects_cross_teacher_subject(school):
+    grade = Grade(
+        student=school.student_ali,
+        teacher=school.teacher_a,
+        subject=school.english,
+        score=4,
+        date=datetime.date.today(),
+    )
+    with pytest.raises(ValidationError):
+        grade.save()
 
-        # O'qituvchi B — Ingliz tili, 7-B sinfi
-        self.teacher_b_user = User.objects.create_user(
-            username='teacher_b', password='password123', first_name='Teacher', last_name='B'
-        )
-        UserProfile.objects.create(user=self.teacher_b_user, role=Role.TEACHER)
-        self.teacher_b = Teacher.objects.create(
-            user=self.teacher_b_user, first_name='Teacher', last_name='B',
-            subject=self.english, phone='+998902'
-        )
-        self.teacher_b.assigned_subjects.add(self.english)
-        self.teacher_b.assigned_classes.add(self.class_7b)
 
-        # O'quvchi Ali — 7-A sinfi
-        self.student_ali_user = User.objects.create_user(
-            username='student_ali', password='password123', first_name='Ali', last_name='Karimov'
-        )
-        UserProfile.objects.create(user=self.student_ali_user, role=Role.STUDENT)
-        self.student_ali = Student.objects.create(
-            user=self.student_ali_user, first_name='Ali', last_name='Karimov',
-            grade_class=self.class_7a
-        )
+@pytest.mark.django_db
+def test_student_fee_balance_due_uses_payments(student_fee):
+    assert student_fee.net_amount == 900_000
+    assert student_fee.balance_due == 900_000
 
-        # O'quvchi Vali — 7-B sinfi
-        self.student_vali_user = User.objects.create_user(
-            username='student_vali', password='password123', first_name='Vali', last_name='Toshev'
-        )
-        UserProfile.objects.create(user=self.student_vali_user, role=Role.STUDENT)
-        self.student_vali = Student.objects.create(
-            user=self.student_vali_user, first_name='Vali', last_name='Toshev',
-            grade_class=self.class_7b
-        )
+    PaymentRecord.objects.create(
+        student_fee=student_fee,
+        paid_amount=400_000,
+        payment_date=datetime.date.today(),
+    )
+    student_fee.refresh_from_db()
+    assert student_fee.status == 'PARTIAL'
+    assert student_fee.balance_due == 500_000
 
-        # Darslar
-        self.lesson_math = Lesson.objects.create(
-            title='Algebra Asoslari', subject=self.math, teacher=self.teacher_a,
-            grade_class=self.class_7a, date=datetime.date.today()
-        )
-        self.lesson_english = Lesson.objects.create(
-            title='Grammar Basics', subject=self.english, teacher=self.teacher_b,
-            grade_class=self.class_7b, date=datetime.date.today()
-        )
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 1: Admin barcha o'qituvchilarni ko'ra oladi
-    # Sabab: Admin tizimning to'liq nazoratchi — barcha ma'lumotlarga
-    # kirishi shart. Agar bu ishlamasa, admin paneli umuman foydasiz.
-    # ─────────────────────────────────────────────────────────
-    def test_01_admin_can_see_all_teachers(self):
-        self.client.login(username='admin_user', password='password123')
-        response = self.client.get(reverse('teacher_list'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Teacher A')
-        self.assertContains(response, 'Teacher B')
+@pytest.mark.django_db
+def test_exam_result_auto_percentage_and_grade(school):
+    exam = Exam.objects.create(
+        title='Chorak imtihoni',
+        subject=school.math,
+        grade_class=school.class_7a,
+        exam_date=datetime.date.today(),
+        total_marks=100,
+    )
+    result = ExamResult.objects.create(
+        exam=exam,
+        student=school.student_ali,
+        marks_obtained=90,
+        percentage=0,
+        grade='',
+    )
+    result.refresh_from_db()
+    assert result.percentage == 90.0
+    assert result.grade == '5'
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 2: O'qituvchi o'z o'quvchisiga baho qo'ya oladi
-    # Sabab: Tizimning asosiy vazifasi — baholash. Agar o'qituvchi
-    # o'z sinfidagi o'quvchiga baho qo'ya olmasa, butun tizim ishlamaydi.
-    # ─────────────────────────────────────────────────────────
-    def test_02_teacher_can_grade_own_student(self):
-        self.client.login(username='teacher_a', password='password123')
-        response = self.client.post(reverse('gradebook'), {
-            'student': self.student_ali.pk,
-            'subject': self.math.pk,
-            'lesson': self.lesson_math.pk,
-            'score': 5,
-            'grade_type': 'KUNDALIK',
-            'date': datetime.date.today().isoformat(),
-            'comment': "A'lo"
-        })
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(
-            Grade.objects.filter(
-                student=self.student_ali, teacher=self.teacher_a,
-                subject=self.math, score=5
-            ).exists()
-        )
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 3: O'qituvchi boshqa o'qituvchi faniga baho qo'ya olmaydi
-    # Sabab: Xavfsizlik. O'qituvchi A Ingliz tili faniga baho qo'ysa —
-    # bu Teacher B ning vakolatiga tajovuz. 403 qaytishi shart.
-    # ─────────────────────────────────────────────────────────
-    def test_03_teacher_cannot_grade_other_teacher_subject(self):
-        self.client.login(username='teacher_a', password='password123')
-        response = self.client.post(reverse('gradebook'), {
-            'student': self.student_ali.pk,
-            'subject': self.english.pk,  # Ingliz tili — Teacher B ning fani!
-            'score': 5,
-            'grade_type': 'KUNDALIK',
-            'date': datetime.date.today().isoformat(),
-        })
-        self.assertEqual(response.status_code, 403)
+# ═══════════════════════════════════════════════════════════════
+# 2. AUTH / VIEW'LAR
+# ═══════════════════════════════════════════════════════════════
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 4: Model darajasida noto'g'ri baho saqlanmaydi (DB himoyasi)
-    # Sabab: View darajasidagi tekshiruv chetlab o'tilsa ham, model
-    # o'zining ValidationError'i bilan ikkinchi qatlamda himoya qiladi.
-    # Bu ikki qatlamli xavfsizlikni ta'minlaydi.
-    # ─────────────────────────────────────────────────────────
-    def test_04_model_rejects_cross_teacher_grade_at_db_level(self):
-        grade = Grade(
-            student=self.student_ali,
-            teacher=self.teacher_a,   # Teacher A
-            subject=self.english,     # Lekin Ingliz tili — Teacher A biriktirilmagan!
-            score=4,
-            date=datetime.date.today()
-        )
-        with self.assertRaises(ValidationError):
-            grade.save()
+@pytest.mark.django_db
+def test_login_success(client, school):
+    response = client.post(reverse('login'), {
+        'username': 'student_ali',
+        'password': 'password123',
+    })
+    assert response.status_code == 302
+    assert response.url == reverse('home')
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 5: O'qituvchi boshqa o'qituvchi darsini tahrirlay olmaydi
-    # Sabab: IDOR (Insecure Direct Object Reference) himoyasi.
-    # URL dagi ID ni o'zgartirib boshqa darsga kirish mumkin bo'lmasligi kerak.
-    # ─────────────────────────────────────────────────────────
-    def test_05_teacher_cannot_edit_other_teacher_lesson(self):
-        self.client.login(username='teacher_a', password='password123')
-        response = self.client.get(
-            reverse('lesson_update', kwargs={'pk': self.lesson_english.pk})
-        )
-        self.assertEqual(response.status_code, 403)
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 6: O'quvchi boshqa o'quvchi profilini ko'ra olmaydi
-    # Sabab: Maxfiylik. Har bir o'quvchi faqat o'z ma'lumotlarini
-    # ko'rishi kerak. Boshqa o'quvchi ID sini URL ga yozib kirish — 403.
-    # ─────────────────────────────────────────────────────────
-    def test_06_student_cannot_view_other_student_profile(self):
-        self.client.login(username='student_ali', password='password123')
-        response = self.client.get(
-            reverse('student_profile', kwargs={'pk': self.student_vali.pk})
-        )
-        self.assertEqual(response.status_code, 403)
+@pytest.mark.django_db
+def test_login_failed(client):
+    response = client.post(reverse('login'), {
+        'username': 'yoq',
+        'password': 'xato',
+    })
+    assert response.status_code == 200
+    assert response.context['error']
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 7: O'quvchi admin sahifalariga kira olmaydi
-    # Sabab: Rolga asoslangan ruxsat tizimi to'g'ri ishlashini tekshiradi.
-    # O'quvchi teacher_list sahifasiga kirsa — 403 olishi shart.
-    # ─────────────────────────────────────────────────────────
-    def test_07_student_cannot_access_admin_pages(self):
-        self.client.login(username='student_ali', password='password123')
-        response = self.client.get(reverse('teacher_list'))
-        self.assertEqual(response.status_code, 403)
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 8: O'quvchi baho kirita olmaydi
-    # Sabab: Faqat Admin va O'qituvchi baho qo'yishi mumkin.
-    # O'quvchi o'z bahosini o'zi kiritib yubormasligi — kritik xavfsizlik.
-    # ─────────────────────────────────────────────────────────
-    def test_08_student_cannot_submit_grades(self):
-        self.client.login(username='student_ali', password='password123')
-        response = self.client.post(reverse('gradebook'), {
-            'student': self.student_ali.pk,
-            'subject': self.math.pk,
-            'score': 100,
-            'grade_type': 'KUNDALIK',
-            'date': datetime.date.today().isoformat(),
-        })
-        self.assertEqual(response.status_code, 403)
+@pytest.mark.django_db
+def test_unauthenticated_redirects_to_login(client):
+    response = client.get(reverse('gradebook'))
+    assert response.status_code == 302
+    assert reverse('login') in response.url
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 9: ID ni qo'lda o'zgartirib ruxsatdan o'tib bo'lmaydi
-    # Sabab: Eng xavfli hujum turi — POST so'rovda teacher ID ni
-    # qo'lda o'zgartirib, boshqa o'qituvchi sifatida baho kiritish.
-    # Bu tamper attack — 403 qaytishi shart.
-    # ─────────────────────────────────────────────────────────
-    def test_09_tampered_teacher_id_in_request_is_rejected(self):
-        self.client.login(username='teacher_a', password='password123')
-        response = self.client.post(reverse('gradebook'), {
-            'student': self.student_vali.pk,  # 7-B o'quvchisi
-            'subject': self.english.pk,       # Teacher B ning fani
-            'teacher': self.teacher_a.pk,     # O'zini Teacher sifatida ko'rsatishga urinish!
-            'score': 5,
-            'grade_type': 'KUNDALIK',
-            'date': datetime.date.today().isoformat(),
-        })
-        self.assertEqual(response.status_code, 403)
 
-    # ─────────────────────────────────────────────────────────
-    # TEST 10: Admin o'quvchi qo'shganda avtomatik User yaratiladi
-    # Sabab: Admin qo'lda User yaratishi shart emas — tizim avtomatik
-    # yaratishi kerak. Student.user null bo'lmasligi va role='STUDENT'
-    # bo'lishi — tizim integratsiyasining to'g'ri ishlashini isbotlaydi.
-    # ─────────────────────────────────────────────────────────
-    def test_10_admin_student_create_auto_generates_user(self):
-        self.client.login(username='admin_user', password='password123')
-        response = self.client.post(reverse('student_create'), {
-            'first_name': 'Hasan',
-            'last_name': 'Husanov',
-            'gender': 'M',
-            'status': 'ACTIVE',
-            'phone': '+998901234567',
-        })
-        self.assertEqual(response.status_code, 302)
-        hasan = Student.objects.get(first_name='Hasan', last_name='Husanov')
-        self.assertIsNotNone(hasan.user)                          # User yaratilganmi?
-        self.assertEqual(hasan.user.profile.role, Role.STUDENT)  # Roli to'g'rimi?
+@pytest.mark.django_db
+def test_admin_can_see_all_teachers(client, school):
+    client.login(username='admin_user', password='password123')
+    response = client.get(reverse('teacher_list'))
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert 'Teacher A' in body
+    assert 'Teacher B' in body
+
+
+@pytest.mark.django_db
+def test_teacher_can_grade_own_student(client, school):
+    client.login(username='teacher_a', password='password123')
+    response = client.post(reverse('gradebook'), {
+        'student': school.student_ali.pk,
+        'subject': school.math.pk,
+        'lesson': school.lesson_math.pk,
+        'score': 5,
+        'grade_type': 'KUNDALIK',
+        'date': datetime.date.today().isoformat(),
+        'comment': "A'lo",
+    })
+    assert response.status_code == 302
+    assert Grade.objects.filter(
+        student=school.student_ali, teacher=school.teacher_a,
+        subject=school.math, score=5,
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_cabinet_opens_for_student(client, school):
+    client.login(username='student_ali', password='password123')
+    response = client.get(reverse('cabinet'))
+    assert response.status_code == 200
+    assert 'Ali' in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_quiz_take_saves_result(client, school, quiz):
+    client.login(username='student_ali', password='password123')
+    response = client.post(reverse('quiz_take', kwargs={'pk': quiz.pk}), {
+        f'q_{quiz.questions.first().pk}': 'B',
+    })
+    assert response.status_code == 200
+    result = QuizResult.objects.get(student=school.student_ali, quiz=quiz)
+    assert result.score == 1
+    assert result.percentage == 100.0
+
+
+# ═══════════════════════════════════════════════════════════════
+# 3. RUXSATLAR (permissions)
+# ═══════════════════════════════════════════════════════════════
+
+@pytest.mark.django_db
+def test_teacher_cannot_grade_other_subject(client, school):
+    client.login(username='teacher_a', password='password123')
+    response = client.post(reverse('gradebook'), {
+        'student': school.student_ali.pk,
+        'subject': school.english.pk,
+        'score': 5,
+        'grade_type': 'KUNDALIK',
+        'date': datetime.date.today().isoformat(),
+    })
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_teacher_cannot_edit_other_teacher_lesson(client, school):
+    client.login(username='teacher_a', password='password123')
+    response = client.get(
+        reverse('lesson_update', kwargs={'pk': school.lesson_english.pk})
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_student_cannot_view_other_student_profile(client, school):
+    client.login(username='student_ali', password='password123')
+    response = client.get(
+        reverse('student_profile', kwargs={'pk': school.student_vali.pk})
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_student_cannot_access_teacher_list(client, school):
+    client.login(username='student_ali', password='password123')
+    response = client.get(reverse('teacher_list'))
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_student_cannot_submit_grades(client, school):
+    client.login(username='student_ali', password='password123')
+    response = client.post(reverse('gradebook'), {
+        'student': school.student_ali.pk,
+        'subject': school.math.pk,
+        'score': 100,
+        'grade_type': 'KUNDALIK',
+        'date': datetime.date.today().isoformat(),
+    })
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_tampered_teacher_id_is_rejected(client, school):
+    client.login(username='teacher_a', password='password123')
+    response = client.post(reverse('gradebook'), {
+        'student': school.student_vali.pk,
+        'subject': school.english.pk,
+        'teacher': school.teacher_a.pk,
+        'score': 5,
+        'grade_type': 'KUNDALIK',
+        'date': datetime.date.today().isoformat(),
+    })
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_admin_student_create_auto_generates_user(client, school):
+    client.login(username='admin_user', password='password123')
+    response = client.post(reverse('student_create'), {
+        'first_name': 'Hasan',
+        'last_name': 'Husanov',
+        'gender': 'M',
+        'status': 'ACTIVE',
+        'phone': '+998901234567',
+    })
+    assert response.status_code == 302
+    hasan = Student.objects.get(first_name='Hasan', last_name='Husanov')
+    assert hasan.user is not None
+    assert hasan.user.profile.role == Role.STUDENT
+
+
+@pytest.mark.django_db
+def test_get_user_role_for_each_account(school):
+    assert get_user_role(school.admin_user) == Role.ADMIN
+    assert get_user_role(school.teacher_a_user) == Role.TEACHER
+    assert get_user_role(school.student_ali_user) == Role.STUDENT
+    assert get_user_role(AnonymousUser()) is None

@@ -4,3 +4,6 @@ python-telegram-bot>=20.0
 django-extensions
 werkzeug
 pyOpenSSL
+pytest
+pytest-django
+pytest-cov

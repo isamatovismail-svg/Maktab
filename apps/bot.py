@@ -6,7 +6,7 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 )
 
-from apps.models import Student, Grade, Timetable, Attendance, Homework, Quiz, QuizResult, StudentFee
+from apps.models import Student, Grade, Timetable, Attendance, Homework, StudentFee
 
 logging.basicConfig(level=logging.INFO)
 
@@ -58,9 +58,6 @@ def get_student_homework(student):
         return []
     return list(Homework.objects.filter(grade_class=student.grade_class, due_date__gte=datetime.date.today()).select_related('subject')[:5])
 
-@sync_to_async
-def get_active_quizzes():
-    return list(Quiz.objects.select_related('subject').all()[:5])
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -76,7 +73,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📅 /jadval — Bugungi dars jadvalingiz\n"
             "📋 /yoqlama — Davomat ko'rsatgichingiz\n"
             "📚 /vazifa — Uyga vazifalaringiz\n"
-            "🧠 /test — Test topshirish (Bilim)\n"
             "💳 /tolov — To'lovlar holati\n"
             "👤 /profil — Profil ma'lumotlaringiz\n"
             "⏭ /keyingidars — Keyingi darsiz"
@@ -166,33 +162,13 @@ async def vazifa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(res, parse_mode='Markdown')
 
 
-async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    student = await get_student_by_telegram_id(update.effective_user.id)
-    if not student:
-        await update.message.reply_text("⚠️ Avval botga registratsiya qilishingiz kerak!")
-        return
-
-    quizzes = await get_active_quizzes()
-    if not quizzes:
-        await update.message.reply_text("🧠 Hozirda faol testlar yo'q.")
-        return
-
-    res = "🧠 **Mavjud Testlar Ro'yxati:**\n\n"
-    for q in quizzes:
-        sub_name = q.subject.name if q.subject else 'Umumiy'
-        icon = q.subject.icon if q.subject else '📝'
-        res += f"• {icon} **{q.title}** ({sub_name})\n"
-        res += f"  ⏱ Vaqt: {q.time_limit_minutes} daqiqa\n\n"
-
-    await update.message.reply_text(res, parse_mode='Markdown')
-
 
 
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg_id = update.effective_user.id
     st = await get_student_by_telegram_id(tg_id)
     if st:
-        await update.message.reply_text("💡 Buyruqlar ro'yxatini ko'rish uchun menyudan foydalaning: /baholar, /jadval, /yoqlama, /vazifa, /test, /tolov, /profil, /keyingidars")
+        await update.message.reply_text("💡 Buyruqlar ro'yxatini ko'rish uchun menyudan foydalaning: /baholar, /jadval, /yoqlama, /vazifa, /tolov, /profil, /keyingidars")
         return
 
     text = update.message.text.strip()
@@ -306,7 +282,6 @@ def create_bot_app(token: str):
     app.add_handler(CommandHandler("jadval", jadval_command))
     app.add_handler(CommandHandler("yoqlama", yoqlama_command))
     app.add_handler(CommandHandler("vazifa", vazifa_command))
-    app.add_handler(CommandHandler("test", test_command))
     app.add_handler(CommandHandler("tolov", tolov_command))
     app.add_handler(CommandHandler("profil", profil_command))
     app.add_handler(CommandHandler("keyingidars", keyingidars_command))

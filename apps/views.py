@@ -50,9 +50,10 @@ class CabinetView(LoginRequiredMixin, View):
             return redirect('home')
 
         grades = Grade.objects.filter(student=student).select_related('subject', 'teacher', 'lesson').order_by('-date')[:15]
-        attendances = Attendance.objects.filter(student=student).select_related('subject').order_by('-date')[:15]
-        total_att = attendances.count()
-        present_att = attendances.filter(status='B').count()
+        att_qs = Attendance.objects.filter(student=student).select_related('subject').order_by('-date')
+        total_att = att_qs.count()
+        present_att = att_qs.filter(status='B').count()
+        attendances = att_qs[:15]
 
         # Dars jadvali (bugungi)
         today_timetable = []
@@ -466,10 +467,11 @@ class StudentProfileView(RoleRequiredMixin, View):
                 if not Timetable.objects.filter(teacher=teacher, grade_class=student.grade_class).exists():
                     raise PermissionDenied("Boshqa o'qituvchining o'quvchisini ko'rish taqiqlangan.")
 
-        attendances = Attendance.objects.filter(student=student).select_related('subject')[:15]
+        att_qs = Attendance.objects.filter(student=student).select_related('subject')
         grades = Grade.objects.filter(student=student).select_related('subject', 'teacher', 'lesson')[:15]
-        total_att = attendances.count()
-        present_att = attendances.filter(status='B').count()
+        total_att = att_qs.count()
+        present_att = att_qs.filter(status='B').count()
+        attendances = att_qs[:15]
 
         return render(request, 'student_profile.html', {
             'student': student,
