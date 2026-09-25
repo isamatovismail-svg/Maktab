@@ -34,7 +34,7 @@ def test_login_success(client, school):
     )
     assert response.status_code == 302
     assert response.url == reverse("home")
-
+11
 
 # 3. VIEW TESTI (O'qituvchi baho qo'yishi)
 @pytest.mark.django_db
