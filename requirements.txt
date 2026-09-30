@@ -1,9 +1,6 @@
-Django>=5.0
-Pillow>=10.0.0
+# Core production dependencies
+Django>=5.0,<7.0
+pillow>=10.0.0
 python-telegram-bot>=20.0
-django-extensions
-werkzeug
-pyOpenSSL
-pytest
-pytest-django
-pytest-cov
+asgiref>=3.8.0
+sqlparse>=0.5.0

@@ -30,9 +30,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_extensions',
     'apps',
 ]
+
+if DEBUG:
+    try:
+        import django_extensions  # noqa: F401
+        INSTALLED_APPS.append('django_extensions')
+    except ImportError:
+        pass
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -104,6 +110,8 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
 if not DEBUG:
+    if SECRET_KEY == 'django-insecure-smart-maktab-production-key-change-this-in-production-12345':
+        raise ValueError("Xavfsizlik xatosi: Production rejimida (DEBUG=False) SECRET_KEY o'zgartirilishi shart!")
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = True
