@@ -1,3 +1,4 @@
+from decimal import Decimal
 import random
 from django.db import models
 from django.contrib.auth.models import User
@@ -342,7 +343,10 @@ class Attendance(models.Model):
 
 class FeeType(models.Model):
     name = models.CharField(max_length=100, verbose_name="To'lov turi nomi")
-    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Standart summa (UZS)")
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2, verbose_name="Standart summa (UZS)",
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
     description = models.TextField(blank=True, verbose_name="Tavsif")
 
     class Meta:
@@ -360,8 +364,14 @@ class StudentFee(models.Model):
     ]
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='fees', verbose_name="O'quvchi", db_index=True)
     fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE, verbose_name="To'lov turi")
-    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Belgilangan summa (UZS)")
-    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Chegirma / Imtiyoz (UZS)")
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2, verbose_name="Belgilangan summa (UZS)",
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+    discount_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Chegirma / Imtiyoz (UZS)",
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
     due_date = models.DateField(verbose_name="Topshirish ohirgi muddati", db_index=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING', verbose_name="Holat", db_index=True)
     academic_year = models.CharField(max_length=20, default="2026-2027", verbose_name="O'quv yili")
@@ -391,6 +401,12 @@ class StudentFee(models.Model):
     def balance(self):
         return self.balance_due
 
+    def clean(self):
+        super().clean()
+        if self.amount is not None and self.discount_amount is not None:
+            if self.discount_amount > self.amount:
+                raise ValidationError("Chegirma summasi to'lov summasidan katta bo'lishi mumkin emas!")
+
     def update_status(self):
         if self.balance_due <= 0:
             self.status = 'PAID'
@@ -408,7 +424,10 @@ class PaymentRecord(models.Model):
         ('CASH', 'Naqd pul'), ('CARD', 'Bank kartasi (Click/Payme)'), ('BANK', "Bank o'tkazmasi"),
     ]
     student_fee = models.ForeignKey(StudentFee, on_delete=models.CASCADE, related_name='payments', verbose_name="To'lov hujjati")
-    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="To'langan summa (UZS)")
+    paid_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, verbose_name="To'langan summa (UZS)",
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
     payment_date = models.DateField(default=timezone.now, verbose_name="To'lov sanasi")
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='CARD', verbose_name="To'lov usuli")
     transaction_id = models.CharField(max_length=100, blank=True, verbose_name="Tranzaksiya ID")
@@ -433,6 +452,12 @@ class PaymentRecord(models.Model):
                     break
         super().save(*args, **kwargs)
         self.student_fee.update_status()
+
+    def delete(self, *args, **kwargs):
+        fee = self.student_fee
+        res = super().delete(*args, **kwargs)
+        fee.update_status()
+        return res
 
 
 class Homework(models.Model):

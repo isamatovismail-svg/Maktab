@@ -226,7 +226,7 @@ class HomeView(LoginRequiredMixin, View):
             'total_grades': Grade.objects.count(),
             'today_timetables': Timetable.objects.filter(day_of_week=today.isoweekday()).select_related('grade_class', 'subject', 'teacher')[:8],
             'recent_grades': Grade.objects.select_related('student', 'subject', 'teacher').all()[:8],
-            'monthly_revenue': PaymentRecord.objects.filter(payment_date__month=today.month).aggregate(total=Sum('paid_amount'))['total'] or 0,
+            'monthly_revenue': PaymentRecord.objects.filter(payment_date__year=today.year, payment_date__month=today.month).aggregate(total=Sum('paid_amount'))['total'] or 0,
             'debtor_students': debtors,
         })
         return render(request, 'home.html', context)
@@ -922,11 +922,19 @@ class FeeListView(RoleRequiredMixin, View):
         if status_filter:
             fees = fees.filter(status=status_filter)
 
+        all_fees = StudentFee.objects.all()
+        total_fees_sum = all_fees.aggregate(total=Sum('amount'))['total'] or 0
+        total_paid_sum = PaymentRecord.objects.aggregate(total=Sum('paid_amount'))['total'] or 0
+        overdue_count = all_fees.filter(status='OVERDUE').count()
+
         return render(request, 'fees.html', {
             'fees': fees,
             'fee_types': FeeType.objects.all(),
             'fee_form': StudentFeeForm(),
             'payment_form': PaymentRecordForm(),
+            'total_fees_sum': f"{total_fees_sum:,.0f}",
+            'total_paid_sum': f"{total_paid_sum:,.0f}",
+            'overdue_count': overdue_count,
         })
 
 
