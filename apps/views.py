@@ -8,23 +8,22 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.db.models import Avg, Count, Q, Sum
-from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.contrib import messages
 
 from .models import (
-    UserProfile, GradeClass, Subject, ParentProfile, Teacher, Student,
+    UserProfile, GradeClass, Subject, Teacher, Student,
     Timetable, Lesson, Grade, Attendance, FeeType, StudentFee, PaymentRecord,
     Homework, HomeworkSubmission, Exam, ExamResult, Announcement,
-    Quiz, Question, QuizResult
+    Quiz, QuizResult
 )
 from .forms import (
     StudentForm, TeacherForm, SubjectForm, GradeClassForm, LessonForm, TimetableForm,
-    HomeworkForm, HomeworkSubmissionForm, GradeForm, FeeTypeForm, StudentFeeForm,
+    HomeworkForm, HomeworkSubmissionForm, GradeForm, StudentFeeForm,
     PaymentRecordForm, ExamForm, AnnouncementForm, RegisterForm
 )
-from .permissions import Role, RoleRequiredMixin, get_user_role, role_required
+from .permissions import Role, RoleRequiredMixin, get_user_role
 from .utils import export_queryset_to_csv
 
 logger = logging.getLogger('apps')

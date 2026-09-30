@@ -4,7 +4,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 
-from apps.models import Student, Grade, StudentFee, PaymentRecord, Exam, ExamResult, QuizResult
+from apps.models import Student, Grade, PaymentRecord, Exam, ExamResult, QuizResult
 from apps.permissions import Role, get_user_role
 
 
@@ -249,3 +249,82 @@ def test_get_user_role_for_each_account(school):
     assert get_user_role(school.teacher_a_user) == Role.TEACHER
     assert get_user_role(school.student_ali_user) == Role.STUDENT
     assert get_user_role(AnonymousUser()) is None
+
+
+# ═══════════════════════════════════════════════════════════════
+# 4. QO'SHIMCHA XAVFSIZLIK VA AUDIT TESTLARI
+# ═══════════════════════════════════════════════════════════════
+
+@pytest.mark.django_db
+def test_invoice_print_idor_blocked(client, school, student_fee):
+    client.login(username='student_vali', password='password123')
+    response = client.get(reverse('invoice_print', kwargs={'fee_id': student_fee.pk}))
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_homework_cross_class_submission_blocked(client, school):
+    from apps.models import Homework
+    hw_7b = Homework.objects.create(
+        grade_class=school.class_7b,
+        subject=school.english,
+        teacher=school.teacher_b,
+        title="Unit 5 Essay",
+        description="Write an essay",
+        due_date=datetime.date.today(),
+    )
+    client.login(username='student_ali', password='password123')
+    response = client.post(reverse('homework_submit', kwargs={'homework_id': hw_7b.pk}), {
+        'submission_text': 'My unauthorized submission',
+    })
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_student_deletion_cleans_up_user(client, school):
+    client.login(username='admin_user', password='password123')
+    user_to_delete = school.student_vali.user
+    user_id = user_to_delete.id
+    response = client.post(reverse('student_delete', kwargs={'pk': school.student_vali.pk}))
+    assert response.status_code == 302
+    from django.contrib.auth.models import User
+    assert not User.objects.filter(id=user_id).exists()
+
+
+@pytest.mark.django_db
+def test_negative_financial_amount_rejected(student_fee):
+    student_fee.amount = -500_000
+    with pytest.raises(ValidationError):
+        student_fee.full_clean()
+
+
+@pytest.mark.django_db
+def test_registration_always_creates_student(client):
+    response = client.post(reverse('register'), {
+        'username': 'new_user_1',
+        'first_name': 'Test',
+        'last_name': 'User',
+        'email': 'test@example.com',
+        'password': 'SecurePassword@123',
+        'password2': 'SecurePassword@123',
+        'role': 'TEACHER',
+    })
+    assert response.status_code == 302
+    from django.contrib.auth.models import User
+    new_user = User.objects.get(username='new_user_1')
+    assert new_user.profile.role == Role.STUDENT
+
+
+@pytest.mark.django_db
+def test_telegram_bot_exact_verification(school):
+    from asgiref.sync import async_to_sync
+    from apps.bot import link_student_telegram
+
+    st, err = async_to_sync(link_student_telegram)("Al", 999999)
+    assert st is None
+    assert err is not None
+
+    st, err = async_to_sync(link_student_telegram)(school.student_ali.student_id, 999999)
+    assert st is not None
+    assert st.telegram_id == "999999"
+    assert err is None

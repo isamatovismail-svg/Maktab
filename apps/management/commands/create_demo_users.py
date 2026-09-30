@@ -43,11 +43,11 @@ class Command(BaseCommand):
             teacher_obj.assigned_subjects.add(subject)
             teacher_obj.assigned_classes.add(grade_class)
 
-            self.stdout.write(self.style.SUCCESS(f"[+] O'QITUVCHI yaratildi:"))
+            self.stdout.write(self.style.SUCCESS("[+] O'QITUVCHI yaratildi:"))
             self.stdout.write(f"     Login    : {teacher_username}")
             self.stdout.write(f"     Parol    : {teacher_password}")
-            self.stdout.write(f"     Ism-Familiya: Ali Karimov")
-            self.stdout.write(f"     Fan      : Matematika\n")
+            self.stdout.write("     Ism-Familiya: Ali Karimov")
+            self.stdout.write("     Fan      : Matematika\n")
 
         # --- O'QUVCHI ---
         student_username = "demo_oquvchi"
@@ -80,10 +80,10 @@ class Command(BaseCommand):
                 status="ACTIVE",
             )
 
-            self.stdout.write(self.style.SUCCESS(f"[+] O'QUVCHI yaratildi:"))
+            self.stdout.write(self.style.SUCCESS("[+] O'QUVCHI yaratildi:"))
             self.stdout.write(f"     Login    : {student_username}")
             self.stdout.write(f"     Parol    : {student_password}")
-            self.stdout.write(f"     Ism-Familiya: Zulfiya Rahimova")
-            self.stdout.write(f"     Sinf     : 9-A\n")
+            self.stdout.write("     Ism-Familiya: Zulfiya Rahimova")
+            self.stdout.write("     Sinf     : 9-A\n")
 
         self.stdout.write(self.style.SUCCESS("=== Tayyor! ==="))

@@ -18,7 +18,7 @@ class Command(BaseCommand):
             ))
             return
 
-        self.stdout.write(self.style.SUCCESS(f"🚀 Telegram Bot ishga tushirilmoqda..."))
+        self.stdout.write(self.style.SUCCESS("🚀 Telegram Bot ishga tushirilmoqda..."))
         try:
             app = create_bot_app(token)
             self.stdout.write(self.style.SUCCESS("✅ Bot tayyor! Xabarlarni kutmoqda... (To'xtatish: Ctrl+C)"))
