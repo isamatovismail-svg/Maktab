@@ -11,7 +11,9 @@ if env_file.exists():
             line = line.strip()
             if line and not line.startswith('#') and '=' in line:
                 key, val = line.split('=', 1)
-                os.environ.setdefault(key.strip(), val.strip())
+                # Strip surrounding quotes (' or ") from values
+                val = val.strip().strip("'\"")
+                os.environ[key.strip()] = val
 
 SECRET_KEY = os.environ.get(
     'SECRET_KEY',
