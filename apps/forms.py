@@ -253,6 +253,9 @@ class AnnouncementForm(forms.ModelForm):
         }
 
 
+from django.contrib.auth.password_validation import validate_password
+
+
 class RegisterForm(forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(attrs=fc('••••••••')),
@@ -261,11 +264,6 @@ class RegisterForm(forms.ModelForm):
     password2 = forms.CharField(
         widget=forms.PasswordInput(attrs=fc('••••••••')),
         label="Parolni tasdiqlang"
-    )
-    role = forms.ChoiceField(
-        choices=[('STUDENT', "O'quvchi"), ('TEACHER', "O'qituvchi")],
-        widget=forms.Select(attrs=fs()),
-        label="Rolingiz"
     )
 
     class Meta:
@@ -280,7 +278,17 @@ class RegisterForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        p1, p2 = cleaned_data.get('password'), cleaned_data.get('password2')
-        if p1 and p2 and p1 != p2:
-            raise forms.ValidationError("Parollar mos kelmadi!")
+        p1 = cleaned_data.get('password')
+        p2 = cleaned_data.get('password2')
+        if p1 and p2:
+            if p1 != p2:
+                raise forms.ValidationError("Parollar mos kelmadi!")
+            # Validate password complexity via Django validators
+            temp_user = User(
+                username=cleaned_data.get('username', ''),
+                first_name=cleaned_data.get('first_name', ''),
+                last_name=cleaned_data.get('last_name', ''),
+                email=cleaned_data.get('email', ''),
+            )
+            validate_password(p1, user=temp_user)
         return cleaned_data

@@ -148,12 +148,8 @@ class UserRegisterView(View):
             user = form.save(commit=False)
             user.set_password(form.cleaned_data['password'])
             user.save()
-            role = form.cleaned_data.get('role', Role.STUDENT)
-            UserProfile.objects.create(user=user, role=role)
-            if role == Role.STUDENT:
-                Student.objects.create(user=user, first_name=user.first_name or user.username, last_name=user.last_name or '')
-            elif role == Role.TEACHER:
-                Teacher.objects.create(user=user, first_name=user.first_name or user.username, last_name=user.last_name or '', phone='')
+            UserProfile.objects.create(user=user, role=Role.STUDENT)
+            Student.objects.create(user=user, first_name=user.first_name or user.username, last_name=user.last_name or '')
             login(request, user)
             messages.success(request, "Akkauntingiz muvaffaqiyatli yaratildi!")
             return redirect('home')
@@ -325,8 +321,11 @@ class TeacherDeleteView(RoleRequiredMixin, View):
     def post(self, request, pk):
         teacher = get_object_or_404(Teacher, pk=pk)
         name = f"{teacher.first_name} {teacher.last_name}"
+        user = teacher.user
         teacher.delete()
-        messages.success(request, f"O'qituvchi {name} o'chirildi.")
+        if user:
+            user.delete()
+        messages.success(request, f"O'qituvchi {name} va uning foydalanuvchi akkaunti o'chirildi.")
         return redirect('teacher_list')
 
 
@@ -560,8 +559,11 @@ class StudentDeleteView(RoleRequiredMixin, View):
     def post(self, request, pk):
         student = get_object_or_404(Student, pk=pk)
         name = f"{student.first_name} {student.last_name}"
+        user = student.user
         student.delete()
-        messages.success(request, f"O'quvchi {name} o'chirildi.")
+        if user:
+            user.delete()
+        messages.success(request, f"O'quvchi {name} va uning foydalanuvchi akkaunti o'chirildi.")
         return redirect('student_list')
 
 
@@ -964,6 +966,13 @@ class PaymentRecordCreateView(RoleRequiredMixin, View):
 class InvoicePrintView(LoginRequiredMixin, View):
     def get(self, request, fee_id):
         fee = get_object_or_404(StudentFee.objects.select_related('student__grade_class', 'fee_type'), pk=fee_id)
+        role = get_user_role(request.user)
+        if role == Role.STUDENT:
+            student = getattr(request.user, 'student_profile', None)
+            if not student or fee.student_id != student.id:
+                raise PermissionDenied("Boshqa o'quvchining to'lov kvitansiyasini ko'rish taqiqlangan.")
+        elif role != Role.ADMIN:
+            raise PermissionDenied("Kvitansiyani ko'rish uchun sizda yetarli ruxsat yo'q.")
         return render(request, 'invoice.html', {'fee': fee, 'payments': fee.payments.all()})
 
 
@@ -1016,6 +1025,8 @@ class HomeworkSubmitView(RoleRequiredMixin, View):
         if not student:
             messages.error(request, "O'quvchi profili topilmadi.")
             return redirect('homework_list')
+        if not student.grade_class_id or student.grade_class_id != hw.grade_class_id:
+            raise PermissionDenied("Ushbu vazifa sizning sinfingizga tegishli emas!")
         form = HomeworkSubmissionForm(request.POST, request.FILES)
         if form.is_valid():
             defaults = {
@@ -1148,9 +1159,14 @@ class QuizTakeView(LoginRequiredMixin, View):
         quiz = get_object_or_404(Quiz, pk=pk)
         questions = quiz.questions.all()
 
-        student = getattr(request.user, 'student_profile', None) or Student.objects.filter(user=request.user).first()
-        if not student and request.POST.get('student_id'):
-            student = Student.objects.filter(pk=request.POST.get('student_id')).first()
+        role = get_user_role(request.user)
+        if role == Role.STUDENT:
+            student = getattr(request.user, 'student_profile', None)
+        elif role == Role.ADMIN:
+            student_id = request.POST.get('student_id')
+            student = Student.objects.filter(pk=student_id).first() if student_id else None
+        else:
+            student = getattr(request.user, 'student_profile', None)
 
         if not student:
             messages.error(request, "Test topshirish uchun O'quvchi profili zarur!")
