@@ -15,6 +15,9 @@ def export_queryset_to_csv(queryset, field_names, header_labels, filename="expor
         for field in field_names:
             val = obj
             for part in field.split('__'):
+                if val is None:
+                    val = ''
+                    break
                 if hasattr(val, part):
                     val = getattr(val, part)
                     if callable(val):

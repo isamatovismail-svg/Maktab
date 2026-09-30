@@ -105,6 +105,10 @@ class LessonForm(forms.ModelForm):
             'description': forms.Textarea(attrs=fc("Dars haqida batafsil ma'lumot...", rows=3)),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['teacher'].required = False
+
 
 class TimetableForm(forms.ModelForm):
     class Meta:
@@ -133,6 +137,10 @@ class HomeworkForm(forms.ModelForm):
             'attachment': forms.FileInput(attrs={'class': 'form-control'}),
             'due_date': forms.DateInput(attrs=fc(type='date')),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['teacher'].required = False
 
 
 class HomeworkSubmissionForm(forms.ModelForm):
@@ -185,11 +193,23 @@ class StudentFeeForm(forms.ModelForm):
         widgets = {
             'student': forms.Select(attrs=fs()),
             'fee_type': forms.Select(attrs=fs()),
-            'amount': forms.NumberInput(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Standart summa'}),
             'discount_amount': forms.NumberInput(attrs=fc('0')),
             'due_date': forms.DateInput(attrs=fc(type='date')),
             'academic_year': forms.TextInput(attrs=fc('2026-2027')),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['amount'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        fee_type = cleaned_data.get('fee_type')
+        amount = cleaned_data.get('amount')
+        if not amount and fee_type:
+            cleaned_data['amount'] = fee_type.amount
+        return cleaned_data
 
 
 class PaymentRecordForm(forms.ModelForm):
@@ -202,6 +222,10 @@ class PaymentRecordForm(forms.ModelForm):
             'transaction_id': forms.TextInput(attrs=fc('Tranzaksiya ID (ixtiyoriy)')),
             'note': forms.Textarea(attrs=fc("To'lov haqida izoh...", rows=2)),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['paid_amount'].required = False
 
 
 class ExamForm(forms.ModelForm):

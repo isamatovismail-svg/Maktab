@@ -223,8 +223,8 @@ async def tolov_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_debt = 0
     for f in fees:
         status = status_map.get(f.status, f.status)
-        balance = float(f.amount) - float(f.discount_amount)
-        total_debt += max(0, balance)
+        balance = f.balance_due
+        total_debt += balance
         res += f"• **{f.fee_type.name}**: {balance:,.0f} UZS\n"
         res += f"  {status} | Muddat: {f.due_date.strftime('%d.%m.%Y')}\n\n"
 
@@ -264,13 +264,14 @@ async def keyingidars_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     days_uz = {1: 'Dushanba', 2: 'Seshanba', 3: 'Chorshanba', 4: 'Payshanba', 5: 'Juma', 6: 'Shanba'}
+    teacher_name = f"{lesson.teacher.first_name} {lesson.teacher.last_name}" if lesson.teacher else "Belgilanmagan"
     res = (
         f"⏭ **Keyingi Darsiz:**\n\n"
         f"📚 Fan: **{lesson.subject.icon} {lesson.subject.name}**\n"
         f"📅 Kun: **{days_uz.get(day_num, '?')}**\n"
         f"⏰ Vaqt: **{lesson.time_slot}**\n"
         f"🚪 Xona: **{lesson.room or 'Belgilanmagan'}**\n"
-        f"👨‍🏫 O'qituvchi: **{lesson.teacher.first_name} {lesson.teacher.last_name}**"
+        f"👨‍🏫 O'qituvchi: **{teacher_name}**"
     )
     await update.message.reply_text(res, parse_mode='Markdown')
 

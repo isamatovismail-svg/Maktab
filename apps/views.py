@@ -132,6 +132,9 @@ class UserLogoutView(View):
             logout(request)
         return redirect('login')
 
+    def post(self, request):
+        return self.get(request)
+
 
 class UserRegisterView(View):
     def get(self, request):
@@ -306,7 +309,11 @@ class TeacherUpdateView(RoleRequiredMixin, View):
         teacher = get_object_or_404(Teacher, pk=pk)
         form = TeacherForm(request.POST, instance=teacher)
         if form.is_valid():
-            form.save()
+            teacher = form.save()
+            pwd = form.cleaned_data.get('password')
+            if pwd and teacher.user:
+                teacher.user.set_password(pwd)
+                teacher.user.save()
             messages.success(request, f"O'qituvchi {teacher.first_name} ma'lumotlari yangilandi!")
             return redirect('teacher_list')
         return render(request, 'teacher_form.html', {'teacher': teacher, 'form': form})
@@ -425,6 +432,8 @@ class StudentListView(RoleRequiredMixin, View):
             if teacher:
                 my_classes = teacher.assigned_classes.all()
                 students = students.filter(grade_class__in=my_classes)
+            else:
+                students = Student.objects.none()
 
         if class_id:
             students = students.filter(grade_class_id=class_id)
@@ -532,7 +541,11 @@ class StudentUpdateView(RoleRequiredMixin, View):
         student = get_object_or_404(Student, pk=pk)
         form = StudentForm(request.POST, request.FILES, instance=student)
         if form.is_valid():
-            form.save()
+            student = form.save()
+            pwd = form.cleaned_data.get('password')
+            if pwd and student.user:
+                student.user.set_password(pwd)
+                student.user.save()
             messages.success(request, "O'quvchi ma'lumotlari yangilandi!")
             return redirect('student_profile', pk=student.pk)
         return render(request, 'student_form.html', {'form': form, 'student': student})
@@ -578,6 +591,9 @@ class LessonListView(LoginRequiredMixin, View):
 class LessonCreateView(RoleRequiredMixin, View):
     allowed_roles = [Role.ADMIN, Role.TEACHER]
 
+    def get(self, request):
+        return render(request, 'lesson_form.html', {'form': LessonForm()})
+
     def post(self, request):
         role = get_user_role(request.user)
         form = LessonForm(request.POST)
@@ -588,6 +604,11 @@ class LessonCreateView(RoleRequiredMixin, View):
                 if not teacher:
                     raise PermissionDenied("O'qituvchi profili biriktirilmagan.")
                 lesson.teacher = teacher
+            elif role == Role.ADMIN:
+                if not lesson.teacher_id:
+                    teacher = Teacher.objects.filter(subject=lesson.subject, assigned_classes=lesson.grade_class).first() or Teacher.objects.filter(subject=lesson.subject).first()
+                    if teacher:
+                        lesson.teacher = teacher
 
             try:
                 lesson.full_clean()
@@ -619,6 +640,8 @@ class LessonUpdateView(RoleRequiredMixin, View):
         if form.is_valid():
             try:
                 updated_lesson = form.save(commit=False)
+                if not updated_lesson.teacher_id:
+                    updated_lesson.teacher = lesson.teacher
                 updated_lesson.full_clean()
                 updated_lesson.save()
                 messages.success(request, "Dars muvaffaqiyatli yangilandi!")
@@ -724,7 +747,10 @@ class GradeBookView(LoginRequiredMixin, View):
                 grade.teacher = request.user.teacher_profile
             elif role == Role.ADMIN:
                 if not grade.teacher_id:
-                    teacher = Teacher.objects.filter(subject=grade.subject, assigned_classes=grade.student.grade_class).first() or Teacher.objects.filter(subject=grade.subject).first()
+                    if grade.student and grade.student.grade_class:
+                        teacher = Teacher.objects.filter(subject=grade.subject, assigned_classes=grade.student.grade_class).first() or Teacher.objects.filter(subject=grade.subject).first()
+                    else:
+                        teacher = Teacher.objects.filter(subject=grade.subject).first()
                     if teacher:
                         grade.teacher = teacher
 
@@ -735,9 +761,8 @@ class GradeBookView(LoginRequiredMixin, View):
 
             except ValidationError as e:
                 messages.error(request, f"Xatolik: {e.messages[0] if hasattr(e, 'messages') else e}")
-            return redirect(
-                    f"{reverse('gradebook')}?class_id={grade.student.grade_class_id}&subject_id={grade.subject.id}"
-                )
+            class_param = f"class_id={grade.student.grade_class_id}&" if grade.student.grade_class_id else ""
+            return redirect(f"{reverse('gradebook')}?{class_param}subject_id={grade.subject.id}")
         
         messages.error(request, "Baho kiritishda formada xatolik yuz berdi!")
         return redirect('gradebook')
@@ -745,7 +770,8 @@ class GradeBookView(LoginRequiredMixin, View):
 
 # ── Yo'qlama / Davomat ────────────────────────────────────────
 
-class AttendanceView(LoginRequiredMixin, View):
+class AttendanceView(RoleRequiredMixin, View):
+    allowed_roles = [Role.ADMIN, Role.TEACHER]
     def get(self, request):
         selected_class_id = request.GET.get('class_id')
         selected_subject_id = request.GET.get('subject_id')
@@ -921,7 +947,10 @@ class PaymentRecordCreateView(RoleRequiredMixin, View):
 
     def post(self, request, fee_id):
         fee = get_object_or_404(StudentFee, pk=fee_id)
-        form = PaymentRecordForm(request.POST)
+        post_data = request.POST.copy()
+        if not post_data.get('paid_amount'):
+            post_data['paid_amount'] = str(fee.balance_due)
+        form = PaymentRecordForm(post_data)
         if form.is_valid():
             payment = form.save(commit=False)
             payment.student_fee = fee
@@ -966,6 +995,11 @@ class HomeworkListView(LoginRequiredMixin, View):
                 if not teacher or not teacher.is_assigned_to_subject_and_class(hw.subject, hw.grade_class):
                     raise PermissionDenied("Boshqa o'qituvchining fani yoki sinfiga vazifa yaratish taqiqlangan!")
                 hw.teacher = teacher
+            elif role == Role.ADMIN:
+                if not hw.teacher_id:
+                    teacher = Teacher.objects.filter(subject=hw.subject, assigned_classes=hw.grade_class).first() or Teacher.objects.filter(subject=hw.subject).first()
+                    if teacher:
+                        hw.teacher = teacher
             hw.save()
             messages.success(request, "Yangi uyga vazifa e'lon qilindi!")
             return redirect('homework_list')
@@ -984,13 +1018,15 @@ class HomeworkSubmitView(RoleRequiredMixin, View):
             return redirect('homework_list')
         form = HomeworkSubmissionForm(request.POST, request.FILES)
         if form.is_valid():
+            defaults = {
+                'submission_text': form.cleaned_data['submission_text'],
+                'status': 'SUBMITTED'
+            }
+            if form.cleaned_data.get('attachment'):
+                defaults['attachment'] = form.cleaned_data['attachment']
             HomeworkSubmission.objects.update_or_create(
                 homework=hw, student=student,
-                defaults={
-                    'submission_text': form.cleaned_data['submission_text'],
-                    'attachment': form.cleaned_data.get('attachment') or None,
-                    'status': 'SUBMITTED'
-                }
+                defaults=defaults
             )
             messages.success(request, "Vazifa topshirildi!")
         else:
@@ -1043,8 +1079,8 @@ class ExamResultEntryView(RoleRequiredMixin, View):
             if not teacher or not teacher.is_assigned_to_subject_and_class(exam.subject, exam.grade_class):
                 raise PermissionDenied("Boshqa o'qituvchining imtihonini tahrirlash taqiqlangan!")
         for st in Student.objects.filter(grade_class=exam.grade_class):
-            mark_val = request.POST.get(f'mark_{st.id}')
-            if mark_val:
+            mark_val = request.POST.get(f'marks_{st.id}') or request.POST.get(f'mark_{st.id}')
+            if mark_val is not None and mark_val != '':
                 try:
                     ExamResult.objects.update_or_create(
                         exam=exam, student=st,
@@ -1099,13 +1135,23 @@ class QuizListView(LoginRequiredMixin, View):
 class QuizTakeView(LoginRequiredMixin, View):
     def get(self, request, pk):
         quiz = get_object_or_404(Quiz, pk=pk)
-        return render(request, 'quiz_take.html', {'quiz': quiz, 'questions': quiz.questions.all()})
+        student = getattr(request.user, 'student_profile', None) or Student.objects.filter(user=request.user).first()
+        students = Student.objects.select_related('grade_class').all() if not student else []
+        return render(request, 'quiz_take.html', {
+            'quiz': quiz,
+            'questions': quiz.questions.all(),
+            'student': student,
+            'students': students,
+        })
 
     def post(self, request, pk):
         quiz = get_object_or_404(Quiz, pk=pk)
         questions = quiz.questions.all()
 
         student = getattr(request.user, 'student_profile', None) or Student.objects.filter(user=request.user).first()
+        if not student and request.POST.get('student_id'):
+            student = Student.objects.filter(pk=request.POST.get('student_id')).first()
+
         if not student:
             messages.error(request, "Test topshirish uchun O'quvchi profili zarur!")
             return redirect('quiz_list')

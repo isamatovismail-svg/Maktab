@@ -93,6 +93,13 @@ class Teacher(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.subject or 'Fansiz'})"
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def get_full_name(self):
+        return self.full_name
+
     def is_assigned_to_subject_and_class(self, subject, grade_class):
         """Check if teacher is assigned to teach subject in grade_class."""
         if not subject or not grade_class:
@@ -157,9 +164,20 @@ class Student(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.grade_class or 'Sinfsiz'})"
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def get_full_name(self):
+        return self.full_name
+
     def save(self, *args, **kwargs):
         if not self.student_id:
-            self.student_id = f"STU-{random.randint(10000, 99999)}"
+            while True:
+                new_id = f"STU-{random.randint(10000, 99999)}"
+                if not Student.objects.filter(student_id=new_id).exists():
+                    self.student_id = new_id
+                    break
         super().save(*args, **kwargs)
 
 
@@ -185,6 +203,16 @@ class Timetable(models.Model):
 
     def clean(self):
         super().clean()
+        if self.grade_class and self.day_of_week and self.time_slot:
+            conflict = Timetable.objects.filter(
+                grade_class=self.grade_class, day_of_week=self.day_of_week, time_slot=self.time_slot
+            ).exclude(pk=self.pk).first()
+            if conflict:
+                raise ValidationError(
+                    f"Xatolik: {self.grade_class} sinfiga {self.get_day_of_week_display()} "
+                    f"kuni {self.time_slot} vaqtida allaqachon {conflict.subject.name} fani belgilangan!"
+                )
+
         if self.teacher and self.day_of_week and self.time_slot:
             conflict = Timetable.objects.filter(
                 teacher=self.teacher, day_of_week=self.day_of_week, time_slot=self.time_slot
@@ -359,6 +387,10 @@ class StudentFee(models.Model):
     def balance_due(self):
         return max(0, self.net_amount - self.total_paid)
 
+    @property
+    def balance(self):
+        return self.balance_due
+
     def update_status(self):
         if self.balance_due <= 0:
             self.status = 'PAID'
@@ -394,7 +426,11 @@ class PaymentRecord(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.receipt_number:
-            self.receipt_number = f"REC-{timezone.now().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+            while True:
+                num = f"REC-{timezone.now().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+                if not PaymentRecord.objects.filter(receipt_number=num).exists():
+                    self.receipt_number = num
+                    break
         super().save(*args, **kwargs)
         self.student_fee.update_status()
 
@@ -474,6 +510,10 @@ class ExamResult(models.Model):
 
     def __str__(self):
         return f"{self.student} — {self.exam.title}: {self.marks_obtained}/{self.exam.total_marks} ({self.percentage}%)"
+
+    @property
+    def marks(self):
+        return self.marks_obtained
 
     def save(self, *args, **kwargs):
         if self.exam and self.marks_obtained is not None:
